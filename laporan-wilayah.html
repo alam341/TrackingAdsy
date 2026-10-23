@@ -712,17 +712,13 @@ function wilRender() {
     ${m.ekspOpts.map(e => `<option value="${escapeHtml(e)}" ${_wilEkspedisi===e?'selected':''}>${escapeHtml(e)}</option>`).join('')}
   </select>`;
 
-  // Filter produk + ekspedisi di atas peta
+  // Semua filter + search + sort di atas peta
   const filterSection = document.getElementById('wilFilterSection');
   if (filterSection) filterSection.innerHTML = `
     <div class="wil-controls" style="margin-bottom:14px">
+      <input type="text" class="wil-search" placeholder="🔍 Cari kota..." value="${escapeHtml(_wilSearch)}" oninput="wilSetSearch(this.value)">
       ${produkSelect}
       ${ekspSelect}
-    </div>`;
-
-  const controlsHtml = `
-    <div class="wil-controls">
-      <input type="text" class="wil-search" placeholder="🔍 Cari kota..." value="${escapeHtml(_wilSearch)}" oninput="wilSetSearch(this.value)">
       <span style="color:var(--text-3);font-size:.72rem;font-weight:600">Urutkan:</span>
       <button class="wil-sort-btn ${_wilSort.key==='total'?'active':''}"       onclick="wilSetSort('total')">Volume</button>
       <button class="wil-sort-btn ${_wilSort.key==='rtsNum'?'active':''}"      onclick="wilSetSort('rtsNum')">RTS %</button>
@@ -730,6 +726,8 @@ function wilRender() {
       <button class="wil-sort-btn ${_wilSort.key==='rateNum'?'active':''}"     onclick="wilSetSort('rateNum')">Rate Sampai</button>
       <span class="wil-count">${rows.length} kota</span>
     </div>`;
+
+  const controlsHtml = ``;
 
   // ── Bar chart (top 20 by volume) ──
   const chartRows = [...rows].sort((a, b) => b.total - a.total).slice(0, 20);
