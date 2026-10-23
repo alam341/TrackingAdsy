@@ -27,10 +27,9 @@
   const user = await requireAuth();
   if (!user) return;
 
-  // Load produk setelah auth — biar RLS lolos (perlu authenticated)
-  const products = await dbGetSkuMap()
-    .then(map => [...map.entries()].map(([kode, nama_produk]) => ({ kode, nama_produk })))
-    .catch(() => []);
+  // Load skuMap sekali — dipakai untuk sidebar DAN resolusi nama produk di order
+  const skuMap = await dbGetSkuMap().catch(e => { console.warn('dbGetSkuMap error:', e); return new Map(); });
+  const products = [...skuMap.entries()].map(([kode, nama_produk]) => ({ kode, nama_produk }));
 
   // Baca filter produk dari URL param (klik sidebar produk)
   const urlProduk = new URLSearchParams(location.search).get('produk') || '';
@@ -43,6 +42,7 @@
     hasMarketplaceFilter: false,
     initialProdukFilter: urlProduk,
     products,
+    skuMap,
   });
 })();
 </script>
