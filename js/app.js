@@ -60,10 +60,12 @@ function renderLayout(activePage, user, products = []) {
       </div>
       <nav class="sidebar-nav">
         <div class="sidebar-group-label">AKUISISI</div>
-        <a href="tracking-akuisisi.html" class="nav-item ${isAkuisisiAll ? 'active' : ''}">
-          <span class="nav-icon">${ICON_TRACKING}</span><span>Akuisisi</span>
+        <a href="#" onclick="sidebarToggleProduk();return false;" class="nav-item ${isAkuisisiAll ? 'active' : ''}" id="sidebar-akuisisi-all">
+          <span class="nav-icon">${ICON_TRACKING}</span>
+          <span style="flex:1">Akuisisi</span>
+          <span id="sidebar-chevron" style="font-size:.7rem;transition:transform .2s;display:inline-block">${activeProduk ? '▾' : '▸'}</span>
         </a>
-        <div id="sidebar-products">${produkItems}</div>
+        <div id="sidebar-products" style="overflow:hidden;max-height:${activeProduk ? '600px' : '0'};transition:max-height .25s ease">${produkItems}</div>
         <div class="sidebar-group-label">PENGATURAN</div>
         <a href="settings-tim.html" class="nav-item ${activePage === 'settings-tim' ? 'active' : ''}">
           <span class="nav-icon">${ICON_SETTINGS}</span><span>Kelola Tim</span>
@@ -121,27 +123,38 @@ function updateSidebarProducts(produkNames) {
       <span>${escapeHtml(nama)}</span>
     </a>`;
   }).join('');
+  // Auto-expand kalau ada produk aktif
+  if (activeProduk) _setSidebarOpen(true);
+}
+
+function sidebarToggleProduk() {
+  const container = document.getElementById('sidebar-products');
+  if (!container) return;
+  const isOpen = container.style.maxHeight !== '0px' && container.style.maxHeight !== '0';
+  _setSidebarOpen(!isOpen);
+  // Kalau collapse → clear filter ke semua
+  if (isOpen) sidebarSetProduk('');
+}
+
+function _setSidebarOpen(open) {
+  const container = document.getElementById('sidebar-products');
+  const chevron = document.getElementById('sidebar-chevron');
+  if (container) container.style.maxHeight = open ? '600px' : '0';
+  if (chevron) chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(-90deg)';
 }
 
 function sidebarSetProduk(nama) {
-  // Update URL tanpa reload
-  const url = nama
-    ? `tracking-akuisisi.html?produk=${encodeURIComponent(nama)}`
-    : 'tracking-akuisisi.html';
-  history.pushState({}, '', url);
+  history.pushState({}, '', nama ? `tracking-akuisisi.html?produk=${encodeURIComponent(nama)}` : 'tracking-akuisisi.html');
 
-  // Update active state sidebar
   document.querySelectorAll('#sidebar-products .nav-item-sub').forEach(el => {
     el.classList.toggle('active', el.dataset.produk === nama);
   });
-  const akuisisiAll = document.querySelector('.sidebar-nav > a.nav-item');
+  const akuisisiAll = document.getElementById('sidebar-akuisisi-all');
   if (akuisisiAll) akuisisiAll.classList.toggle('active', !nama);
 
-  // Update header title
   const h1 = document.querySelector('.topbar-title h1');
   if (h1) h1.textContent = nama || 'Akuisisi';
 
-  // Filter data tanpa reload — panggil fungsi dari tracking-common.js
   if (typeof trSetProdukFilter === 'function') trSetProdukFilter(nama);
 }
 
