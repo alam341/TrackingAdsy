@@ -261,7 +261,7 @@ function initTrackingPage(cfg) {
       const filters = { dateFrom: trYmd(st.filterStart), dateTo: trYmd(st.filterEnd) };
       if (cfg.hasMarketplaceFilter && st.mpFilter) filters.marketplace = st.mpFilter;
       if (cfg.domain === 'akuisisi') {
-        st.orders = await dbGetAkuisisiOrders(filters.dateFrom, filters.dateTo);
+        st.orders = await dbGetAkuisisiOrders(filters.dateFrom, filters.dateTo, cfg.skuMap || null);
       } else {
         st.orders = await dbGetTrackableOrders(cfg.table, filters);
       }

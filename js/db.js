@@ -89,9 +89,9 @@ function _extractEkspedisiCS(pembayaran, resi) {
   return '';
 }
 
-async function dbGetAkuisisiOrders(dateFrom, dateTo) {
-  // 0. Kick off SKU map fetch di background (jalan paralel dengan all_orderan fetch di bawah)
-  const _skuMapPromise = dbGetSkuMap().catch(() => new Map());
+async function dbGetAkuisisiOrders(dateFrom, dateTo, preloadedSkuMap = null) {
+  // 0. Pakai skuMap yang sudah di-load (dari page init) — kalau tidak ada, fetch sendiri
+  const _skuMapPromise = preloadedSkuMap ? Promise.resolve(preloadedSkuMap) : dbGetSkuMap().catch(() => new Map());
 
   // Fallback: bersihkan kolom jumlah kalau SKU tidak ketemu di nama
   // "4 BOX NEW PRIMAGOLD" → "PRIMAGOLD", "*1 BOTOL NEW HERBAPIL*" → "HERBAPIL"
