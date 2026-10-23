@@ -15,11 +15,12 @@ module.exports = async function handler(req, res) {
       const { tab = 'aktif', limit = 500 } = req.query;
 
       const filterMap = {
-        aktif:       'cs_responded=eq.false&lapor_ekspedisi=eq.false&investigasi=eq.false',
-        bales:       'cs_responded=eq.true',
-        lapor:       'lapor_ekspedisi=eq.true',
-        investigasi: 'investigasi=eq.true',
-        semua:       '',
+        aktif:        'cs_responded=eq.false&lapor_ekspedisi=eq.false&investigasi=eq.false',
+        tidak_bales:  'fu_count=gte.3&cs_responded=eq.false&lapor_ekspedisi=eq.false&investigasi=eq.false',
+        bales:        'cs_responded=eq.true',
+        lapor:        'lapor_ekspedisi=eq.true',
+        investigasi:  'investigasi=eq.true',
+        semua:        '',
       };
 
       const f = filterMap[tab] ?? '';
