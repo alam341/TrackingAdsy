@@ -164,9 +164,10 @@
 <script src="js/app.js"></script>
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
-let _wilDateFrom  = wibYMDOffset(-29);
+const _wilNow = new Date();
+let _wilDateFrom  = wibYMD(new Date(_wilNow.getFullYear(), _wilNow.getMonth(), 1));
 let _wilDateTo    = wibYMD();
-let _wilPreset    = '30h';
+let _wilPreset    = 'bulan-ini';
 let _wilSkuMap    = new Map();
 let _wilOrders    = [];
 let _wilSort      = { key: 'total', dir: 'desc' };
@@ -193,8 +194,8 @@ function renderPage() {
       <input type="date" id="wilFrom" value="${_wilDateFrom}" onchange="wilSetDate()">
       <span style="color:var(--text-3);font-size:.8rem">–</span>
       <input type="date" id="wilTo"   value="${_wilDateTo}"   onchange="wilSetDate()">
+      <button class="wil-preset ${_wilPreset==='bulan-ini'?'active':''}" onclick="wilPreset('bulan-ini')">Bulan Ini</button>
       <button class="wil-preset ${_wilPreset==='7h'  ?'active':''}" onclick="wilPreset('7h')">7 Hari</button>
-      <button class="wil-preset ${_wilPreset==='14h' ?'active':''}" onclick="wilPreset('14h')">14 Hari</button>
       <button class="wil-preset ${_wilPreset==='30h' ?'active':''}" onclick="wilPreset('30h')">30 Hari</button>
       <button class="wil-refresh" onclick="wilRefresh()">🔄 Refresh</button>
     </div>
@@ -206,9 +207,15 @@ function renderPage() {
 
 function wilPreset(key) {
   _wilPreset = key;
-  const days = key === '30h' ? 30 : key === '14h' ? 14 : 7;
-  _wilDateFrom = wibYMDOffset(-(days - 1));
-  _wilDateTo   = wibYMD();
+  const now = new Date();
+  if (key === 'bulan-ini') {
+    _wilDateFrom = wibYMD(new Date(now.getFullYear(), now.getMonth(), 1));
+    _wilDateTo   = wibYMD();
+  } else {
+    const days = key === '30h' ? 30 : 7;
+    _wilDateFrom = wibYMDOffset(-(days - 1));
+    _wilDateTo   = wibYMD();
+  }
   document.getElementById('wilFrom').value = _wilDateFrom;
   document.getElementById('wilTo').value   = _wilDateTo;
   document.querySelectorAll('.wil-preset').forEach(el => el.classList.remove('active'));
