@@ -210,6 +210,27 @@ async function dbGetAkuisisiOrders(dateFrom, dateTo, preloadedSkuMap = null) {
   return mapped;
 }
 
+// ── Tim/CS per domain — target notif WA kalau order bermasalah ───────────────
+async function dbGetTeamMembers(domain) {
+  let q = _sb.from('team_members').select('*').order('name');
+  if (domain) q = q.eq('domain', domain);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+async function dbAddTeamMember(domain, name, noWa) {
+  const { data, error } = await _sb.from('team_members').insert({ domain, name, no_wa: noWa }).select().single();
+  if (error) {
+    if (error.code === '23505') throw new Error('Nama itu sudah terdaftar di domain ini.');
+    throw error;
+  }
+  return data;
+}
+async function dbDeleteTeamMember(id) {
+  const { error } = await _sb.from('team_members').delete().eq('id', id);
+  if (error) throw error;
+}
+
 // ── Mapping kode SKU -> nama produk ──────────────────────────────────────────
 async function dbGetSkuMap() {
   const { data, error } = await _sb.from('sku_produk').select('kode,nama_produk,urutan').order('urutan', { nullsLast: true });
