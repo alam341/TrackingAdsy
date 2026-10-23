@@ -32,11 +32,10 @@
 
 /* ── Summary cards ────────────────────────────────────────────────── */
 .ar-summary {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px;
 }
-.ar-card.hero { grid-column: span 1; }
-@media (max-width: 768px) { .ar-summary { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
-@media (max-width: 420px) { .ar-summary { grid-template-columns: 1fr; } }
+@media (max-width: 1000px) { .ar-summary { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px)  { .ar-summary { grid-template-columns: 1fr; gap: 10px; } }
 .ar-card {
   background: var(--card); border: 1px solid var(--border);
   border-radius: 14px; padding: 18px 20px;
@@ -156,7 +155,7 @@ function arRenderPage() {
 
     <div id="arSummary" class="ar-summary">
       <div class="ar-card" style="grid-column:span 2"><div class="ar-skel" style="width:55%"></div><div class="ar-skel big" style="margin:8px 0"></div><div class="ar-skel" style="width:70%"></div></div>
-      ${Array(4).fill(`<div class="ar-card"><div class="ar-skel" style="width:65%"></div><div class="ar-skel big" style="margin:8px 0"></div><div class="ar-skel" style="width:75%"></div></div>`).join('')}
+      ${Array(5).fill(`<div class="ar-card"><div class="ar-skel" style="width:65%"></div><div class="ar-skel big" style="margin:8px 0"></div><div class="ar-skel" style="width:75%"></div></div>`).join('')}
     </div>
 
     <div class="ar-grid" id="arGrid">
@@ -199,12 +198,13 @@ function arRender() {
   const rows = arFiltered();
 
   // ── Summary cards ────────────────────────────────────────────────────────────
-  const total        = rows.length;
-  const tidakBales   = rows.filter(o => o.fu_count >= 4 && !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi).length;
-  const bales        = rows.filter(o => o.cs_responded).length;
-  const lapor        = rows.filter(o => o.lapor_ekspedisi).length;
-  const investigasi  = rows.filter(o => o.investigasi).length;
-  const respRate     = total ? Math.round(bales / total * 100) : 0;
+  const total           = rows.length;
+  const tidakBales      = rows.filter(o => o.fu_count >= 4 && !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi).length;
+  const bales           = rows.filter(o => o.cs_responded).length;
+  const lapor           = rows.filter(o => o.lapor_ekspedisi).length;
+  const investigasi     = rows.filter(o => o.investigasi).length;
+  const berhasilTerkirim = rows.filter(o => o.cs_responded && !o.investigasi).length;
+  const respRate        = total ? Math.round(bales / total * 100) : 0;
 
   const rateColor = respRate >= 70 ? 'c-success' : respRate >= 40 ? '' : 'c-danger';
 
@@ -214,6 +214,11 @@ function arRender() {
       <div class="ar-card-label">📦 Total Bermasalah</div>
       <div class="ar-card-num">${total.toLocaleString('id-ID')}</div>
       <div class="ar-card-sub">Semua paket yang masuk Room Work</div>
+    </div>
+    <div class="ar-card">
+      <div class="ar-card-label">✅ Berhasil Terkirim</div>
+      <div class="ar-card-num c-success">${berhasilTerkirim}</div>
+      <div class="ar-card-sub">CS bales & tidak retur</div>
     </div>
     <div class="ar-card">
       <div class="ar-card-label">📊 Respons Rate CS</div>
