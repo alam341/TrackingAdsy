@@ -102,29 +102,32 @@ async function dbGetAkuisisiOrders(dateFrom, dateTo, preloadedSkuMap = null) {
       .trim();
   }
 
-  // 1. Fetch order data langsung dari CS Input all_orderan (real-time)
-  // SKU map jalan paralel di background (_skuMapPromise), akan di-await setelah loop ini selesai
+  // 1. Fetch CS Input — ambil total count dulu, lalu semua halaman paralel
   const PAGE = 1000;
-  let csOrders = [], offset = 0;
-  while (true) {
-    const params = [
-      'select=id,tanggal,nama,hp,alamat,jumlah,quantity,total_pembayaran,pembayaran,kabupaten,cs,resi',
-      'sumber=eq.cs_input',
-      'tanggal=gte.' + dateFrom,
-      'tanggal=lte.' + dateTo,
-      'order=tanggal.desc,id.desc',
-      'limit=' + PAGE,
-      'offset=' + offset,
-    ].join('&');
-    const r = await fetch(_CS_INPUT_URL + '/rest/v1/all_orderan?' + params, {
-      headers: { apikey: _CS_INPUT_KEY, Authorization: 'Bearer ' + _CS_INPUT_KEY },
-    });
-    if (!r.ok) throw new Error('CS Input query gagal: ' + r.status);
-    const batch = await r.json();
-    csOrders = csOrders.concat(batch);
-    if (batch.length < PAGE) break;
-    offset += PAGE;
-  }
+  const baseParams = [
+    'select=id,tanggal,nama,hp,alamat,jumlah,quantity,total_pembayaran,pembayaran,kabupaten,cs,resi',
+    'sumber=eq.cs_input',
+    'tanggal=gte.' + dateFrom,
+    'tanggal=lte.' + dateTo,
+    'order=tanggal.desc,id.desc',
+  ].join('&');
+  const csHeaders = { apikey: _CS_INPUT_KEY, Authorization: 'Bearer ' + _CS_INPUT_KEY };
+
+  // HEAD request untuk dapat total count (Supabase PostgREST content-range header)
+  const headRes = await fetch(_CS_INPUT_URL + '/rest/v1/all_orderan?' + baseParams + '&limit=1', {
+    headers: { ...csHeaders, Prefer: 'count=exact' },
+  });
+  const totalCount = parseInt(headRes.headers.get('content-range')?.split('/')?.[1] || '1000');
+  const totalPages = Math.ceil(totalCount / PAGE);
+
+  // Fetch semua halaman paralel sekaligus
+  const pageFetches = Array.from({ length: totalPages }, (_, i) =>
+    fetch(_CS_INPUT_URL + '/rest/v1/all_orderan?' + baseParams + `&limit=${PAGE}&offset=${i * PAGE}`, {
+      headers: csHeaders,
+    }).then(r => r.ok ? r.json() : Promise.reject(new Error('CS Input query gagal: ' + r.status)))
+  );
+  const pages = await Promise.all(pageFetches);
+  const csOrders = pages.flat();
 
   // Tunggu SKU map (sudah jalan paralel, biasanya sudah resolve sebelum loop selesai)
   const _skuMap = await _skuMapPromise;
@@ -163,18 +166,19 @@ async function dbGetAkuisisiOrders(dateFrom, dateTo, preloadedSkuMap = null) {
     };
   });
 
-  // 3. Batch query akuisisi_orders untuk tracking status (skip IMP-)
+  // 3. Batch query akuisisi_orders untuk tracking status (skip IMP-) — semua chunk paralel
   const resiIds = mapped.filter(o => !o.id.startsWith('IMP-')).map(o => o.id);
   if (resiIds.length) {
     const CHUNK = 500;
-    const trackMap = {};
-    for (let i = 0; i < resiIds.length; i += CHUNK) {
-      const chunk = resiIds.slice(i, i + CHUNK);
-      const { data } = await _sb.from('akuisisi_orders')
+    const chunks = [];
+    for (let i = 0; i < resiIds.length; i += CHUNK) chunks.push(resiIds.slice(i, i + CHUNK));
+    const trackResults = await Promise.all(chunks.map(chunk =>
+      _sb.from('akuisisi_orders')
         .select('id,status_resi,status_resi_step,status_resi_updated_at,ekspedisi,followup_attempts,followup_responded,followup_courier_notified,status_resi_detail->>masalah_kategori,status_resi_detail->>bermasalah_since')
-        .in('id', chunk);
-      (data || []).forEach(t => { trackMap[t.id] = t; });
-    }
+        .in('id', chunk)
+    ));
+    const trackMap = {};
+    trackResults.forEach(({ data }) => (data || []).forEach(t => { trackMap[t.id] = t; }));
     mapped.forEach(o => {
       const t = trackMap[o.id];
       if (!t) return;
