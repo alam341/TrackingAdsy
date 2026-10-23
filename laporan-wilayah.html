@@ -51,6 +51,9 @@
 .wil-stat-label { font-size: .7rem; color: var(--text-3); font-weight: 600; margin-bottom: 6px; line-height: 1.3; }
 .wil-stat-num { font-size: 1.7rem; font-weight: 800; line-height: 1; }
 .wil-stat-sub { font-size: .72rem; color: var(--text-3); margin-top: 4px; }
+.wil-stat-skel { height: 14px; border-radius: 6px; background: var(--border); margin-bottom: 10px; animation: skelPulse 1.2s ease-in-out infinite; }
+.wil-stat-skel.big { height: 28px; width: 60%; margin-bottom: 8px; }
+@keyframes skelPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
 /* ── Controls bar (search + sort) ───────────────────────────────── */
 .wil-controls {
@@ -509,6 +512,7 @@ function updateWilMapMarkers(rows) {
 // ── Render shell ──────────────────────────────────────────────────────────────
 function renderPage() {
   document.getElementById('pageContent').innerHTML = `
+    <div id="wilSummarySection"><div class="wil-summary">${Array(5).fill(`<div class="wil-stat"><div class="wil-stat-skel" style="width:55%"></div><div class="wil-stat-skel big"></div><div class="wil-stat-skel" style="width:70%"></div></div>`).join('')}</div></div>
     <div class="wil-filter-bar">
       <label>Periode</label>
       <input type="date" id="wilFrom" value="${_wilDateFrom}" onchange="wilSetDate()">
@@ -519,7 +523,6 @@ function renderPage() {
       <button class="wil-preset ${_wilPreset==='30h' ?'active':''}" onclick="wilPreset('30h')">30 Hari</button>
       <button class="wil-refresh" onclick="wilRefresh()">🔄 Refresh</button>
     </div>
-    <div id="wilSummarySection"></div>
     <div id="wilMapSection" style="isolation:isolate;position:relative;z-index:0">
       <div class="wil-chart-card">
         <div class="wil-chart-title">Peta Persebaran Paket</div>
