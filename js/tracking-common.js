@@ -291,6 +291,12 @@ function initTrackingPage(cfg) {
     // Pakai produk pertama sebelum " + " supaya bundle (misal "MISOHWA + MAS") masuk ke opsi "MISOHWA"
     return [...new Set(st.orders.map(o => (o.produk || '').split(' + ')[0].trim()).filter(Boolean))].sort();
   }
+  // Opsi produk dari sku_produk (cfg.products) — sumber sama dengan sidebar,
+  // jadi filter dropdown & sidebar selalu konsisten
+  function skuProdukOptions() {
+    if (cfg.products && cfg.products.length) return cfg.products.map(p => p.nama_produk);
+    return produkOptions(); // fallback ke order data kalau products tidak dipass
+  }
 
   function renderPage() {
     document.getElementById('pageContent').innerHTML = `
@@ -347,7 +353,7 @@ function initTrackingPage(cfg) {
               </select>
               <select class="ctrl-select" id="trProdukFilter" onchange="trSetProdukFilter(this.value)">
                 <option value="">Semua Produk</option>
-                ${produkOptions().map(p => `<option value="${escapeHtml(p)}" ${st.produkFilter===p?'selected':''}>${escapeHtml(p)}</option>`).join('')}
+                ${skuProdukOptions().map(p => `<option value="${escapeHtml(p)}" ${st.produkFilter===p?'selected':''}>${escapeHtml(p)}</option>`).join('')}
               </select>` : ''}
             <div class="drp-wrap">
               <button class="drp-trigger" onclick="trDrpToggle()" id="trDrp-trigger">
