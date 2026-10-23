@@ -60,12 +60,18 @@ function renderLayout(activePage, user, products = []) {
       </div>
       <nav class="sidebar-nav">
         <div class="sidebar-group-label">AKUISISI</div>
+        ${_ON_TRACKING_PAGE ? `
         <a href="#" onclick="sidebarToggleProduk();return false;" class="nav-item ${isAkuisisiAll ? 'active' : ''}" id="sidebar-akuisisi-all">
           <span class="nav-icon">${ICON_TRACKING}</span>
           <span style="flex:1">Akuisisi</span>
           <span id="sidebar-chevron" style="font-size:.7rem;transition:transform .2s;display:inline-block">${activeProduk ? '▾' : '▸'}</span>
         </a>
         <div id="sidebar-products" style="overflow:hidden;max-height:${activeProduk ? '600px' : '0'};transition:max-height .25s ease">${produkItems}</div>
+        ` : `
+        <a href="tracking-akuisisi.html" class="nav-item">
+          <span class="nav-icon">${ICON_TRACKING}</span><span>Akuisisi</span>
+        </a>
+        `}
         <div class="sidebar-group-label">PENGATURAN</div>
         <a href="settings-tim.html" class="nav-item ${activePage === 'settings-tim' ? 'active' : ''}">
           <span class="nav-icon">${ICON_SETTINGS}</span><span>Kelola Tim</span>

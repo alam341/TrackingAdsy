@@ -102,32 +102,47 @@ async function dbGetAkuisisiOrders(dateFrom, dateTo, preloadedSkuMap = null) {
       .trim();
   }
 
-  // 1. Fetch CS Input — ambil total count dulu, lalu semua halaman paralel
+  // 1. Fetch CS Input — cache 15 menit di sessionStorage supaya tidak hit Supabase tiap reload
   const PAGE = 1000;
-  const baseParams = [
-    'select=id,tanggal,nama,hp,alamat,jumlah,quantity,total_pembayaran,pembayaran,kabupaten,cs,resi',
-    'sumber=eq.cs_input',
-    'tanggal=gte.' + dateFrom,
-    'tanggal=lte.' + dateTo,
-    'order=tanggal.desc,id.desc',
-  ].join('&');
-  const csHeaders = { apikey: _CS_INPUT_KEY, Authorization: 'Bearer ' + _CS_INPUT_KEY };
+  const CACHE_TTL = 15 * 60 * 1000; // 15 menit
+  const cacheKey = `cs_orders_${dateFrom}_${dateTo}`;
+  let csOrders = null;
 
-  // HEAD request untuk dapat total count (Supabase PostgREST content-range header)
-  const headRes = await fetch(_CS_INPUT_URL + '/rest/v1/all_orderan?' + baseParams + '&limit=1', {
-    headers: { ...csHeaders, Prefer: 'count=exact' },
-  });
-  const totalCount = parseInt(headRes.headers.get('content-range')?.split('/')?.[1] || '1000');
-  const totalPages = Math.ceil(totalCount / PAGE);
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      const { ts, data } = JSON.parse(cached);
+      if (Date.now() - ts < CACHE_TTL) csOrders = data;
+    } catch (_) {}
+  }
 
-  // Fetch semua halaman paralel sekaligus
-  const pageFetches = Array.from({ length: totalPages }, (_, i) =>
-    fetch(_CS_INPUT_URL + '/rest/v1/all_orderan?' + baseParams + `&limit=${PAGE}&offset=${i * PAGE}`, {
-      headers: csHeaders,
-    }).then(r => r.ok ? r.json() : Promise.reject(new Error('CS Input query gagal: ' + r.status)))
-  );
-  const pages = await Promise.all(pageFetches);
-  const csOrders = pages.flat();
+  if (!csOrders) {
+    const baseParams = [
+      'select=id,tanggal,nama,hp,alamat,jumlah,quantity,total_pembayaran,pembayaran,kabupaten,cs,resi',
+      'sumber=eq.cs_input',
+      'tanggal=gte.' + dateFrom,
+      'tanggal=lte.' + dateTo,
+      'order=tanggal.desc,id.desc',
+    ].join('&');
+    const csHeaders = { apikey: _CS_INPUT_KEY, Authorization: 'Bearer ' + _CS_INPUT_KEY };
+
+    const headRes = await fetch(_CS_INPUT_URL + '/rest/v1/all_orderan?' + baseParams + '&limit=1', {
+      headers: { ...csHeaders, Prefer: 'count=exact' },
+    });
+    const totalCount = parseInt(headRes.headers.get('content-range')?.split('/')?.[1] || '1000');
+    const totalPages = Math.ceil(totalCount / PAGE);
+
+    const pageFetches = Array.from({ length: totalPages }, (_, i) =>
+      fetch(_CS_INPUT_URL + '/rest/v1/all_orderan?' + baseParams + `&limit=${PAGE}&offset=${i * PAGE}`, {
+        headers: csHeaders,
+      }).then(r => r.ok ? r.json() : Promise.reject(new Error('CS Input query gagal: ' + r.status)))
+    );
+    const pages = await Promise.all(pageFetches);
+    csOrders = pages.flat();
+
+    // Simpan ke cache
+    try { sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: csOrders })); } catch (_) {}
+  }
 
   // Tunggu SKU map (sudah jalan paralel, biasanya sudah resolve sebelum loop selesai)
   const _skuMap = await _skuMapPromise;
