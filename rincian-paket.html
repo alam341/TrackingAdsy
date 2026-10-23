@@ -162,8 +162,8 @@ let _rpPage    = 1;
 const RP_PAGE_SIZE = 15;
 
 let _rpDateTo   = wibYMD();
-let _rpDateFrom = wibYMDOffset(-29); // default 30 hari
-let _rpPreset   = '30h';
+let _rpDateFrom = wibYMD().slice(0, 7) + '-01'; // default bulan ini
+let _rpPreset   = 'bulan-ini';
 let _rpSkuMap   = new Map();
 
 // ── Tab definitions ────────────────────────────────────────────────────────────
@@ -254,10 +254,11 @@ function rpRenderPage() {
       <input type="date" id="rpFrom" value="${_rpDateFrom}" onchange="rpSetDate()">
       <span style="color:var(--text-3);font-size:.8rem">–</span>
       <input type="date" id="rpTo" value="${_rpDateTo}" onchange="rpSetDate()">
-      <button class="rp-preset ${_rpPreset==='bulan-ini'?'active':''}" onclick="rpPreset('bulan-ini')">Bulan Ini</button>
-      <button class="rp-preset ${_rpPreset==='7h' ?'active':''}"       onclick="rpPreset('7h')">7 Hari</button>
-      <button class="rp-preset ${_rpPreset==='14h'?'active':''}"       onclick="rpPreset('14h')">14 Hari</button>
-      <button class="rp-preset ${_rpPreset==='30h'?'active':''}"       onclick="rpPreset('30h')">30 Hari</button>
+      <button class="rp-preset ${_rpPreset==='bulan-ini' ?'active':''}" onclick="rpPreset('bulan-ini')">Bulan Ini</button>
+      <button class="rp-preset ${_rpPreset==='bulan-lalu'?'active':''}" onclick="rpPreset('bulan-lalu')">Bulan Lalu</button>
+      <button class="rp-preset ${_rpPreset==='7h'        ?'active':''}" onclick="rpPreset('7h')">7 Hari</button>
+      <button class="rp-preset ${_rpPreset==='14h'       ?'active':''}" onclick="rpPreset('14h')">14 Hari</button>
+      <button class="rp-preset ${_rpPreset==='30h'       ?'active':''}" onclick="rpPreset('30h')">30 Hari</button>
       <button class="rp-refresh" onclick="rpRefresh()">🔄 Refresh</button>
     </div>
     <div id="rpFilterSection">
@@ -490,11 +491,21 @@ function rpGoPage(p)      { _rpPage = p; rpRenderTable(rpCategorize(rpApplyFilte
 
 function rpPreset(key) {
   _rpPreset = key;
-  _rpDateTo = wibYMD();
-  if (key === 'bulan-ini') _rpDateFrom = wibYMD().slice(0,7) + '-01';
-  else {
+  if (key === 'bulan-ini') {
+    _rpDateFrom = wibYMD().slice(0, 7) + '-01';
+    _rpDateTo   = wibYMD();
+  } else if (key === 'bulan-lalu') {
+    const now  = new Date();
+    const y    = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    const m    = now.getMonth() === 0 ? 12 : now.getMonth(); // bulan lalu (1-based)
+    const mm   = String(m).padStart(2, '0');
+    const last = new Date(y, m, 0).getDate(); // hari terakhir bulan lalu
+    _rpDateFrom = `${y}-${mm}-01`;
+    _rpDateTo   = `${y}-${mm}-${last}`;
+  } else {
     const d = key === '30h' ? 29 : key === '14h' ? 13 : 6;
     _rpDateFrom = wibYMDOffset(-d);
+    _rpDateTo   = wibYMD();
   }
   document.getElementById('rpFrom').value = _rpDateFrom;
   document.getElementById('rpTo').value   = _rpDateTo;
