@@ -138,6 +138,28 @@ const RW_TABS = [
   { key: 'semua',       label: 'Semua',              emoji: '📋' },
 ];
 
+// ── Case Undel mapping (Mengantar status_category → label friendly) ───────────
+const CASE_UNDEL_MAP = {
+  'UNDELIVERED':           { label: 'Tidak Ada Orang',    icon: '🚪' },
+  'NOBODY AT HOME':        { label: 'Tidak Ada Orang',    icon: '🚪' },
+  'PICKUP FAILED':         { label: 'Gagal Pickup',       icon: '📦' },
+  'ADDRESS NOT FOUND':     { label: 'Alamat Tidak Ditemukan', icon: '📍' },
+  'WRONG ADDRESS':         { label: 'Alamat Salah',       icon: '📍' },
+  'REFUSED BY RECIPIENT':  { label: 'Ditolak Penerima',   icon: '🚫' },
+  'RECIPIENT NOT FOUND':   { label: 'Penerima Tidak Ada', icon: '👤' },
+  'UNREACHABLE':           { label: 'Tidak Bisa Dihubungi', icon: '📵' },
+  'PHONE NOT REACHABLE':   { label: 'Tidak Bisa Dihubungi', icon: '📵' },
+  'HELD AT WAREHOUSE':     { label: 'Simpan di Gudang',   icon: '🏭' },
+};
+function fmtCaseUndel(raw) {
+  if (!raw) return '—';
+  const key = raw.toUpperCase().trim();
+  const mapped = CASE_UNDEL_MAP[key];
+  if (mapped) return `${mapped.icon} ${mapped.label}`;
+  // Fallback: title case dari raw
+  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+}
+
 // ── Format helpers ─────────────────────────────────────────────────────────────
 function fmtTs(iso) {
   if (!iso) return '—';
@@ -314,7 +336,7 @@ function rwRenderTable() {
       <td style="font-size:.75rem;color:var(--text-3)">${escapeHtml(o.produk || '—')}</td>
       <td style="font-size:.78rem">${escapeHtml(o.ekspedisi || '—')}</td>
       <td style="font-size:.78rem">${escapeHtml(o.kota_tujuan || '—')}</td>
-      <td style="font-size:.72rem;color:var(--danger);font-weight:600">${escapeHtml(o.case_undel || '—')}</td>
+      <td style="font-size:.78rem;color:var(--danger);font-weight:600;white-space:nowrap">${fmtCaseUndel(o.case_undel)}</td>
       <td style="font-size:.72rem;color:var(--text-3)">
         ${fmtTs(o.created_at)}
         <div style="font-size:.65rem;color:var(--text-3)">${fmtDurShort(o.created_at)} lalu</div>
