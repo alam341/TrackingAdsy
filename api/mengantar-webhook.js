@@ -9,6 +9,7 @@
 
 const crypto = require('crypto');
 const { sbFetch } = require('../lib/supabase-rest');
+const { notifBermasalah } = require('../lib/notif-wa');
 
 // Matikan body parser bawaan Vercel — kita butuh raw body untuk verifikasi HMAC
 // (parse ulang JSON → bytes beda → signature tidak cocok)
@@ -112,10 +113,10 @@ module.exports = async function handler(req, res) {
   const now = new Date().toISOString();
 
   try {
-    // 5. Cek apakah order sudah ada (untuk preserve bermasalah_since)
+    // 5. Cek apakah order sudah ada (untuk preserve bermasalah_since + ambil cs_nama)
     let existingRows = [];
     try {
-      existingRows = await sbFetch(`akuisisi_orders?select=id,status_resi,status_resi_detail&id=eq.${encodeURIComponent(cnote_no)}`);
+      existingRows = await sbFetch(`akuisisi_orders?select=id,status_resi,status_resi_detail,cs_nama,kota_tujuan&id=eq.${encodeURIComponent(cnote_no)}`);
     } catch (_) {}
     const existing = existingRows?.[0];
 
@@ -152,6 +153,17 @@ module.exports = async function handler(req, res) {
     });
 
     console.log(`[webhook] ${cnote_no} → ${stage} (${status_category})`);
+
+    // 8. Kirim notif WA ke CS kalau baru jadi BERMASALAH (bukan sekadar update ulang)
+    if (stage === 'BERMASALAH' && existing?.status_resi !== 'BERMASALAH') {
+      notifBermasalah({
+        resi:       cnote_no,
+        csNama:     existing?.cs_nama || '',
+        kota:       existing?.kota_tujuan || '',
+        ekspedisi:  courier || '',
+      }).catch(e => console.error('[notif] Gagal kirim WA:', e.message));
+    }
+
     res.status(200).json({ ok: true, resi: cnote_no, stage });
 
   } catch (e) {
