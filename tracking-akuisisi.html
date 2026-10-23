@@ -24,11 +24,13 @@
 <script>
 (async () => {
   await initSupabaseClient();
-  const [user, products] = await Promise.all([
-    requireAuth(),
-    dbGetSkuMap().then(map => [...map.entries()].map(([kode, nama_produk]) => ({ kode, nama_produk }))).catch(() => []),
-  ]);
+  const user = await requireAuth();
   if (!user) return;
+
+  // Load produk setelah auth — biar RLS lolos (perlu authenticated)
+  const products = await dbGetSkuMap()
+    .then(map => [...map.entries()].map(([kode, nama_produk]) => ({ kode, nama_produk })))
+    .catch(() => []);
 
   // Baca filter produk dari URL param (klik sidebar produk)
   const urlProduk = new URLSearchParams(location.search).get('produk') || '';
@@ -40,6 +42,7 @@
     domainLabel: urlProduk || 'Akuisisi',
     hasMarketplaceFilter: false,
     initialProdukFilter: urlProduk,
+    products,
   });
 })();
 </script>
