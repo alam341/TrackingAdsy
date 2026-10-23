@@ -65,7 +65,7 @@
 (async () => {
   await initSupabaseClient();
   const session = await sbGetSession();
-  if (session) window.location.href = 'dashboard.html';
+  if (session) window.location.href = 'tracking-akuisisi.html';
 })();
 
 function switchTab(tab) {
@@ -86,7 +86,7 @@ async function doLogin() {
   hideErr();
   try {
     await sbLogin(email, password);
-    window.location.href = 'dashboard.html';
+    window.location.href = 'tracking-akuisisi.html';
   } catch (e) {
     showErr(e.message === 'Invalid login credentials' ? 'Email atau password salah.' : e.message);
     btn.textContent = 'Masuk'; btn.disabled = false;
@@ -105,7 +105,7 @@ async function doRegister() {
   hideErr();
   try {
     await sbSignUp(email, password, name);
-    window.location.href = 'dashboard.html';
+    window.location.href = 'tracking-akuisisi.html';
   } catch (e) {
     showErr(e.message || 'Gagal mendaftar.');
     btn.textContent = 'Daftar'; btn.disabled = false;
