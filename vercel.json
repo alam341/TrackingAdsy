@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "api/tracking-check.js": {
+      "maxDuration": 30
+    },
+    "api/mengantar-webhook.js": {
+      "maxDuration": 10
+    }
+  }
+}

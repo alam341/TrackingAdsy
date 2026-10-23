@@ -1,0 +1,161 @@
+// Webhook Mengantar — menerima push status order real-time
+// POST /api/mengantar-webhook
+//
+// Setiap kali status order berubah di Mengantar, mereka POST payload ke sini.
+// Kita verifikasi HMAC, map status_category → stage kita, update akuisisi_orders.
+// Jauh lebih efisien dari polling — update terjadi detik itu juga, bukan nunggu 2 jam.
+//
+// Docs: https://app.mengantar.com/docs/webhook
+
+const crypto = require('crypto');
+const { sbFetch } = require('../lib/supabase-rest');
+
+// Matikan body parser bawaan Vercel — kita butuh raw body untuk verifikasi HMAC
+// (parse ulang JSON → bytes beda → signature tidak cocok)
+module.exports.config = { api: { bodyParser: false } };
+
+// ── Stage mapping dari status_category Mengantar ke stage internal ────────────
+const STATUS_MAP = {
+  'ACTIVE':                 'DIKIRIM',
+  'WAITING NEXT PROCESS':   'DIKIRIM',
+  'PENDING PICKUP':         'DIKIRIM',
+  'PICKED UP':              'DIKIRIM',
+  'ON DELIVERY':            'OTW',
+  'DELIVERED':              'SAMPAI',
+  'UNDELIVERED':            'BERMASALAH',
+  'PICKUP FAILED':          'BERMASALAH',
+  'RTS':                    'RETUR',
+  'CANCELED':               'RETUR',
+  'CANCELLED':              'RETUR',   // Mengantar kirim dua ejaan — handle keduanya
+  'ERROR':                  'BELUM_DICEK',
+};
+
+const STAGE_STEP = {
+  MENUNGGU_RESI: 1, BELUM_DICEK: 1, MANUAL: 1,
+  DIKIRIM: 2, KOTA_TUJUAN: 3, OTW: 4, SAMPAI: 5,
+  BERMASALAH: 2, RETUR: 2,
+};
+
+// ── Baca raw body dari stream ─────────────────────────────────────────────────
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', reject);
+  });
+}
+
+module.exports = async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  // 1. Baca raw body sebelum parse apapun
+  const rawBody = await readRawBody(req);
+
+  // 2. Verifikasi HMAC-SHA256
+  const secret = process.env.MENGANTAR_WEBHOOK_SECRET;
+  const timestamp = req.headers['x-timestamp'] || '';
+  const received = req.headers['x-signature'] || '';
+
+  if (secret) {
+    const expected = crypto
+      .createHmac('sha256', secret)
+      .update(`${timestamp}.${rawBody}`)
+      .digest('hex');
+
+    const valid =
+      expected.length === received.length &&
+      crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(received));
+
+    if (!valid) {
+      console.error('[webhook] Signature tidak valid');
+      res.status(401).json({ error: 'Invalid signature' });
+      return;
+    }
+
+    // Tolak request yang terlalu lama (replay attack) — toleransi 5 menit
+    if (timestamp && Math.abs(Date.now() - Number(timestamp)) > 5 * 60 * 1000) {
+      console.error('[webhook] Request kadaluarsa, timestamp:', timestamp);
+      res.status(401).json({ error: 'Request expired' });
+      return;
+    }
+  }
+
+  // 3. Parse payload
+  let payload;
+  try {
+    payload = JSON.parse(rawBody);
+  } catch (e) {
+    res.status(400).json({ error: 'Invalid JSON' });
+    return;
+  }
+
+  const { cnote_no, order_id, courier, status_category } = payload;
+
+  if (!cnote_no || !status_category) {
+    res.status(400).json({ error: 'cnote_no dan status_category wajib ada' });
+    return;
+  }
+
+  // 4. Map ke stage internal
+  const stage = STATUS_MAP[status_category?.toUpperCase?.()] || STATUS_MAP[status_category];
+  if (!stage) {
+    // Status tidak dikenal — acknowledge saja agar Mengantar tidak retry terus
+    console.warn('[webhook] Status tidak dikenal:', status_category, '— diabaikan');
+    res.status(200).json({ ok: true, ignored: true });
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  try {
+    // 5. Cek apakah order sudah ada (untuk preserve bermasalah_since)
+    let existingRows = [];
+    try {
+      existingRows = await sbFetch(`akuisisi_orders?select=id,status_resi,status_resi_detail&id=eq.${encodeURIComponent(cnote_no)}`);
+    } catch (_) {}
+    const existing = existingRows?.[0];
+
+    // 6. Bangun patch
+    const patch = {
+      id: cnote_no,
+      ekspedisi: courier || null,
+      status_resi: stage,
+      status_resi_step: STAGE_STEP[stage] || 1,
+      status_resi_updated_at: now,
+    };
+
+    // Kalau jadi BERMASALAH → set bermasalah_since (jangan timpa kalau sudah ada)
+    if (stage === 'BERMASALAH') {
+      const existingDetail = existing?.status_resi_detail || {};
+      const alreadySince = existingDetail.bermasalah_since;
+      patch.status_resi_detail = {
+        ...existingDetail,
+        bermasalah_since: alreadySince || now,
+        webhook_status: status_category,
+      };
+    } else if (stage === 'SAMPAI' || stage === 'RETUR') {
+      // Simpan status akhir untuk referensi
+      const existingDetail = existing?.status_resi_detail || {};
+      patch.status_resi_detail = { ...existingDetail, webhook_status: status_category };
+    }
+
+    // 7. Upsert ke akuisisi_orders
+    // Pakai upsert — kalau resi belum ada di tabel (baru pertama kali dapat webhook) → insert
+    await sbFetch('akuisisi_orders?on_conflict=id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(patch),
+    });
+
+    console.log(`[webhook] ${cnote_no} → ${stage} (${status_category})`);
+    res.status(200).json({ ok: true, resi: cnote_no, stage });
+
+  } catch (e) {
+    console.error('[webhook] Error update DB:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+};

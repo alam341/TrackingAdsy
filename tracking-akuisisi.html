@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracking Resi Akuisisi — adsy-tracking</title>
+<link rel="icon" type="image/png" href="img/logo-adsy.png">
+<link rel="stylesheet" href="css/main.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<div id="sidebar-slot"></div>
+<div id="header-slot"></div>
+<div class="main-content">
+  <div class="page" id="pageContent"></div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script src="js/tracking-common.js"></script>
+<script>
+(async () => {
+  await initSupabaseClient();
+  const [user, products] = await Promise.all([
+    requireAuth(),
+    dbGetSkuMap().then(map => [...map.entries()].map(([kode, nama_produk]) => ({ kode, nama_produk }))).catch(() => []),
+  ]);
+  if (!user) return;
+
+  // Baca filter produk dari URL param (klik sidebar produk)
+  const urlProduk = new URLSearchParams(location.search).get('produk') || '';
+
+  renderLayout('tracking-akuisisi', user, products);
+  initTrackingPage({
+    table: 'akuisisi_orders',
+    domain: 'akuisisi',
+    domainLabel: urlProduk || 'Akuisisi',
+    hasMarketplaceFilter: false,
+    initialProdukFilter: urlProduk,
+  });
+})();
+</script>
+</body>
+</html>

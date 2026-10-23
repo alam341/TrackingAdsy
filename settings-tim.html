@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kelola Tim — adsy-tracking</title>
+<link rel="icon" type="image/png" href="img/logo-adsy.png">
+<link rel="stylesheet" href="css/main.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div id="sidebar-slot"></div>
+<div id="header-slot"></div>
+<div class="main-content">
+  <div class="page" id="pageContent"></div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+const TIM_TABS = [
+  { key: 'akuisisi', label: 'Akuisisi' },
+  { key: 'crm', label: 'CRM' },
+];
+let timActiveDomain = 'akuisisi';
+
+(async () => {
+  await initSupabaseClient();
+  const user = await requireAuth();
+  if (!user) return;
+  renderLayout('settings-tim', user);
+  renderTeamPage();
+})();
+
+function renderTeamPage() {
+  document.getElementById('pageContent').innerHTML = `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div class="card-header-left">
+          <h3>📱 WA Notifikasi Internal</h3>
+          <div class="card-sub">Nomor WA yang dipakai kirim notif ke CS kalau ada order bermasalah</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadNotifStatus()">🔄 Cek Status</button>
+      </div>
+      <div id="notifStatusWrap" style="padding:4px 0 8px">
+        <div style="color:var(--text-3);font-size:.85rem">Memuat status...</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-left">
+          <h3>Kelola Tim</h3>
+          <div class="card-sub">Daftar CS/tim per domain -- namanya dicocokin otomatis dari kolom "Instruksi Pengiriman" pas upload, buat rute notif WA kalau order-nya bermasalah</div>
+        </div>
+      </div>
+      <div class="tr-tabs" id="timTabs"></div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;max-width:520px;flex-wrap:wrap">
+        <input type="text" id="timNewName" class="ctrl-input" style="flex:1;min-width:160px" placeholder="Nama CS (persis sama kayak di file Excel)...">
+        <input type="text" id="timNewWa" class="ctrl-input" style="flex:1;min-width:160px" placeholder="No WhatsApp, mis. 6281234567890">
+        <button class="btn btn-primary btn-sm" onclick="addTeamMember()">+ Tambah</button>
+      </div>
+      <div id="timError" style="display:none;color:var(--danger);font-size:.82rem;margin-bottom:12px"></div>
+      <div id="timList"></div>
+    </div>
+  `;
+  renderTimTabs();
+  loadTeamMembers();
+  loadNotifStatus();
+}
+
+let _notifStatusTimer = null;
+async function loadNotifStatus() {
+  const wrap = document.getElementById('notifStatusWrap');
+  if (!wrap) return;
+  try {
+    const r = await fetch('/api/notif-proxy?action=qr');
+    const data = await r.json();
+
+    if (data.error) {
+      wrap.innerHTML = `<div style="display:flex;align-items:center;gap:10px">
+        <span style="width:10px;height:10px;border-radius:50%;background:#EF233C;display:inline-block;flex-shrink:0"></span>
+        <span style="font-size:.85rem;color:var(--danger)">Service tidak bisa dihubungi — pastikan VPS & baileys-notif aktif</span>
+      </div>`;
+      return;
+    }
+
+    if (data.connected) {
+      clearInterval(_notifStatusTimer);
+      wrap.innerHTML = `<div style="display:flex;align-items:center;gap:10px">
+        <span style="width:10px;height:10px;border-radius:50%;background:#06C270;display:inline-block;flex-shrink:0;box-shadow:0 0 0 3px rgba(6,194,112,.2)"></span>
+        <span style="font-size:.85rem;color:var(--success);font-weight:600">Terhubung — siap kirim notif WA ke CS</span>
+      </div>`;
+      return;
+    }
+
+    if (data.waiting) {
+      wrap.innerHTML = `<div style="display:flex;align-items:center;gap:10px">
+        <span style="width:10px;height:10px;border-radius:50%;background:#FFB703;display:inline-block;flex-shrink:0"></span>
+        <span style="font-size:.85rem;color:var(--text-2)">Menunggu QR... (restart baileys-notif di VPS)</span>
+      </div>`;
+      return;
+    }
+
+    if (data.qr) {
+      clearInterval(_notifStatusTimer);
+      wrap.innerHTML = `
+        <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+          <div>
+            <img src="${escapeHtml(data.qr)}" style="width:200px;height:200px;border:3px solid var(--border);border-radius:10px;display:block">
+            <div style="font-size:.72rem;color:var(--text-3);margin-top:6px;text-align:center">QR expired tiap ~60 detik</div>
+          </div>
+          <div style="max-width:280px">
+            <div style="font-weight:600;font-size:.88rem;margin-bottom:8px">📱 Cara scan:</div>
+            <ol style="font-size:.82rem;color:var(--text-2);line-height:1.8;padding-left:18px;margin:0">
+              <li>Buka WhatsApp di HP</li>
+              <li>Setelan → Perangkat Tertaut</li>
+              <li>Tautkan Perangkat</li>
+              <li>Scan QR di kiri</li>
+            </ol>
+            <div style="margin-top:12px;font-size:.78rem;color:var(--text-3)">Gunakan nomor khusus notifikasi internal — bukan nomor CS aktif.</div>
+            <button class="btn btn-outline btn-sm" style="margin-top:12px" onclick="loadNotifStatus()">🔄 Refresh QR</button>
+          </div>
+        </div>
+      `;
+      // Auto-refresh QR tiap 30 detik kalau belum terscan
+      _notifStatusTimer = setInterval(loadNotifStatus, 30000);
+    }
+  } catch(e) {
+    wrap.innerHTML = `<div style="font-size:.82rem;color:var(--text-3)">Gagal cek status: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderTimTabs() {
+  document.getElementById('timTabs').innerHTML = TIM_TABS.map(t =>
+    `<div class="tr-tab ${timActiveDomain === t.key ? 'active' : ''}" onclick="setTimTab('${t.key}')">${t.label}</div>`
+  ).join('');
+}
+
+function setTimTab(domain) { timActiveDomain = domain; renderTimTabs(); loadTeamMembers(); }
+
+async function loadTeamMembers() {
+  const el = document.getElementById('timList');
+  el.innerHTML = `<div class="page-loading"><div class="spinner"></div></div>`;
+  try {
+    const members = await dbGetTeamMembers(timActiveDomain);
+    if (!members.length) {
+      el.innerHTML = `<div class="empty"><div class="icon">👥</div>Belum ada CS terdaftar di ${TIM_TABS.find(t=>t.key===timActiveDomain).label}.</div>`;
+      return;
+    }
+    el.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nama CS</th><th>No WhatsApp</th><th>Ditambahkan</th><th></th></tr></thead>
+          <tbody>
+            ${members.map(m => `
+              <tr>
+                <td style="font-weight:600">${escapeHtml(m.name)}</td>
+                <td style="font-size:.82rem">${escapeHtml(m.no_wa)}</td>
+                <td style="font-size:.78rem;color:var(--text-3)">${new Date(m.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})}</td>
+                <td><button class="btn btn-sm" style="background:#FEE2E2;color:#EF233C;border:none;cursor:pointer" onclick="removeTeamMember('${m.id}','${escapeHtml(m.name)}')">Hapus</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--danger);padding:20px">Gagal memuat: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function addTeamMember() {
+  const nameInput = document.getElementById('timNewName');
+  const waInput = document.getElementById('timNewWa');
+  const errEl = document.getElementById('timError');
+  const name = nameInput.value.trim();
+  const wa = waInput.value.trim();
+  errEl.style.display = 'none';
+  nameInput.style.borderColor = ''; waInput.style.borderColor = '';
+  if (!name) { nameInput.style.borderColor = 'var(--danger)'; nameInput.focus(); return; }
+  if (!wa) { waInput.style.borderColor = 'var(--danger)'; waInput.focus(); return; }
+  try {
+    await dbAddTeamMember(timActiveDomain, name, wa);
+    nameInput.value = ''; waInput.value = '';
+    showToast('✅ CS ditambahkan', 'success');
+    loadTeamMembers();
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+async function removeTeamMember(id, name) {
+  if (!confirm(`Hapus CS "${name}"? Order yang udah ada tetap tersimpan, cuma notif WA-nya berhenti kekirim ke nomor ini.`)) return;
+  try {
+    await dbDeleteTeamMember(id);
+    showToast('✅ CS dihapus', 'success');
+    loadTeamMembers();
+  } catch (e) {
+    showToast('❌ Gagal hapus: ' + e.message, 'error');
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && ['timNewName','timNewWa'].includes(document.activeElement?.id)) addTeamMember();
+});
+</script>
+</body>
+</html>
