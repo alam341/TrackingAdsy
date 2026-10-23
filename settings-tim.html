@@ -25,6 +25,9 @@ const TIM_TABS = [
   { key: 'crm', label: 'CRM' },
 ];
 let timActiveDomain = 'akuisisi';
+let _timMembers = [];
+let timPage = 1;
+const TIM_PAGE_SIZE = 20;
 
 (async () => {
   await initSupabaseClient();
@@ -56,12 +59,7 @@ function renderTeamPage() {
         </div>
       </div>
       <div class="tr-tabs" id="timTabs"></div>
-      <div style="display:flex;gap:10px;margin-bottom:16px;max-width:520px;flex-wrap:wrap">
-        <input type="text" id="timNewName" class="ctrl-input" style="flex:1;min-width:160px" placeholder="Nama CS (persis sama kayak di file Excel)...">
-        <input type="text" id="timNewWa" class="ctrl-input" style="flex:1;min-width:160px" placeholder="No WhatsApp, mis. 6281234567890">
-        <button class="btn btn-primary btn-sm" onclick="addTeamMember()">+ Tambah</button>
-      </div>
-      <div id="timError" style="display:none;color:var(--danger);font-size:.82rem;margin-bottom:12px"></div>
+      <div style="font-size:.78rem;color:var(--text-3);margin-bottom:12px">Data CS diambil otomatis dari CS Input — perubahan dilakukan di sistem CS Input.</div>
       <div id="timList"></div>
     </div>
   `;
@@ -138,73 +136,67 @@ function renderTimTabs() {
   ).join('');
 }
 
-function setTimTab(domain) { timActiveDomain = domain; renderTimTabs(); loadTeamMembers(); }
+function setTimTab(domain) { timActiveDomain = domain; timPage = 1; renderTimTabs(); loadTeamMembers(); }
 
 async function loadTeamMembers() {
   const el = document.getElementById('timList');
   el.innerHTML = `<div class="page-loading"><div class="spinner"></div></div>`;
   try {
-    const members = await dbGetTeamMembers(timActiveDomain);
-    if (!members.length) {
-      el.innerHTML = `<div class="empty"><div class="icon">👥</div>Belum ada CS terdaftar di ${TIM_TABS.find(t=>t.key===timActiveDomain).label}.</div>`;
-      return;
-    }
-    el.innerHTML = `
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Nama CS</th><th>No WhatsApp</th><th>Ditambahkan</th><th></th></tr></thead>
-          <tbody>
-            ${members.map(m => `
-              <tr>
-                <td style="font-weight:600">${escapeHtml(m.name)}</td>
-                <td style="font-size:.82rem">${escapeHtml(m.no_wa)}</td>
-                <td style="font-size:.78rem;color:var(--text-3)">${new Date(m.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})}</td>
-                <td><button class="btn btn-sm" style="background:#FEE2E2;color:#EF233C;border:none;cursor:pointer" onclick="removeTeamMember('${m.id}','${escapeHtml(m.name)}')">Hapus</button></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
+    _timMembers = await dbGetTeamMembers(timActiveDomain);
+    timPage = 1;
+    renderTimList();
   } catch (e) {
     el.innerHTML = `<div style="color:var(--danger);padding:20px">Gagal memuat: ${escapeHtml(e.message)}</div>`;
   }
 }
 
-async function addTeamMember() {
-  const nameInput = document.getElementById('timNewName');
-  const waInput = document.getElementById('timNewWa');
-  const errEl = document.getElementById('timError');
-  const name = nameInput.value.trim();
-  const wa = waInput.value.trim();
-  errEl.style.display = 'none';
-  nameInput.style.borderColor = ''; waInput.style.borderColor = '';
-  if (!name) { nameInput.style.borderColor = 'var(--danger)'; nameInput.focus(); return; }
-  if (!wa) { waInput.style.borderColor = 'var(--danger)'; waInput.focus(); return; }
-  try {
-    await dbAddTeamMember(timActiveDomain, name, wa);
-    nameInput.value = ''; waInput.value = '';
-    showToast('✅ CS ditambahkan', 'success');
-    loadTeamMembers();
-  } catch (e) {
-    errEl.textContent = e.message;
-    errEl.style.display = 'block';
+function renderTimList() {
+  const el = document.getElementById('timList');
+  if (!_timMembers.length) {
+    el.innerHTML = `<div class="empty"><div class="icon">👥</div>Belum ada CS terdaftar di ${TIM_TABS.find(t=>t.key===timActiveDomain).label}.</div>`;
+    return;
   }
+  const totalPages = Math.ceil(_timMembers.length / TIM_PAGE_SIZE);
+  timPage = Math.min(Math.max(timPage, 1), totalPages);
+  const start = (timPage - 1) * TIM_PAGE_SIZE;
+  const pageItems = _timMembers.slice(start, start + TIM_PAGE_SIZE);
+
+  const rows = pageItems.map(m => `
+    <tr>
+      <td style="font-weight:600">${escapeHtml(m.name)}</td>
+      <td style="font-size:.82rem">${escapeHtml(m.no_wa || '-')}</td>
+      <td style="font-size:.78rem;color:var(--text-3)">${escapeHtml(m.role || '-')}</td>
+    </tr>
+  `).join('');
+
+  const pagination = totalPages > 1 ? `
+    <div style="display:flex;align-items:center;gap:10px;justify-content:center;padding:16px 0 4px">
+      <button class="btn btn-outline btn-sm" onclick="timGoPage(${timPage - 1})" ${timPage <= 1 ? 'disabled' : ''}>← Prev</button>
+      <span style="font-size:.82rem;color:var(--text-2)">Halaman <strong>${timPage}</strong> dari <strong>${totalPages}</strong> (${_timMembers.length} CS)</span>
+      <button class="btn btn-outline btn-sm" onclick="timGoPage(${timPage + 1})" ${timPage >= totalPages ? 'disabled' : ''}>Next →</button>
+    </div>
+  ` : `<div style="font-size:.78rem;color:var(--text-3);padding:10px 0 4px">${_timMembers.length} CS terdaftar</div>`;
+
+  el.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nama CS</th><th>No WhatsApp</th><th>Role</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${pagination}
+  `;
 }
 
-async function removeTeamMember(id, name) {
-  if (!confirm(`Hapus CS "${name}"? Order yang udah ada tetap tersimpan, cuma notif WA-nya berhenti kekirim ke nomor ini.`)) return;
-  try {
-    await dbDeleteTeamMember(id);
-    showToast('✅ CS dihapus', 'success');
-    loadTeamMembers();
-  } catch (e) {
-    showToast('❌ Gagal hapus: ' + e.message, 'error');
-  }
+function timGoPage(page) {
+  timPage = page;
+  renderTimList();
+  document.getElementById('timList')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && ['timNewName','timNewWa'].includes(document.activeElement?.id)) addTeamMember();
+  if (e.key === 'ArrowLeft' && timPage > 1) timGoPage(timPage - 1);
+  if (e.key === 'ArrowRight' && timPage < Math.ceil(_timMembers.length / TIM_PAGE_SIZE)) timGoPage(timPage + 1);
 });
 </script>
 </body>
