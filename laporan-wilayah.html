@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laporan Wilayah — adsy-tracking</title>
+<link rel="icon" type="image/png" href="img/logo-adsy.png">
+<link rel="stylesheet" href="css/main.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ── Filter bar ──────────────────────────────────────────────────── */
+.wil-filter-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 18px; margin-bottom: 20px;
+}
+.wil-filter-bar label { font-size: .78rem; color: var(--text-3); font-weight: 600; white-space: nowrap; }
+.wil-filter-bar input[type=date] {
+  border: 1px solid var(--border); background: var(--input-bg);
+  color: var(--text-1); border-radius: 8px; padding: 6px 10px;
+  font-size: .82rem; font-family: inherit; cursor: pointer;
+}
+.wil-select {
+  border: 1px solid var(--border); background: var(--input-bg); color: var(--text-1);
+  border-radius: 8px; padding: 6px 10px; font-size: .78rem; font-family: inherit; cursor: pointer;
+}
+.wil-preset {
+  border: 1px solid var(--border); background: var(--input-bg);
+  color: var(--text-2); border-radius: 8px; padding: 6px 12px;
+  font-size: .78rem; font-weight: 600; cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.wil-preset:hover, .wil-preset.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.wil-refresh {
+  margin-left: auto; border: 1px solid var(--border); background: var(--input-bg);
+  color: var(--text-2); border-radius: 8px; padding: 6px 14px;
+  font-size: .78rem; font-weight: 600; cursor: pointer; transition: all .15s;
+}
+.wil-refresh:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ── Summary cards ───────────────────────────────────────────────── */
+.wil-summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 18px; }
+@media (max-width: 900px) { .wil-summary { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 560px) { .wil-summary { grid-template-columns: repeat(2, 1fr); } }
+.wil-stat {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+}
+.wil-stat-label { font-size: .7rem; color: var(--text-3); font-weight: 600; margin-bottom: 6px; line-height: 1.3; }
+.wil-stat-num { font-size: 1.7rem; font-weight: 800; line-height: 1; }
+.wil-stat-sub { font-size: .72rem; color: var(--text-3); margin-top: 4px; }
+
+/* ── Controls bar (search + sort) ───────────────────────────────── */
+.wil-controls {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.wil-search {
+  flex: 1; min-width: 180px; border: 1px solid var(--border); background: var(--input-bg);
+  color: var(--text-1); border-radius: 8px; padding: 7px 12px;
+  font-size: .82rem; font-family: inherit;
+}
+.wil-sort-btn {
+  border: 1px solid var(--border); background: var(--input-bg); color: var(--text-2);
+  border-radius: 8px; padding: 6px 12px; font-size: .78rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: all .15s;
+}
+.wil-sort-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.wil-count { font-size: .78rem; color: var(--text-3); margin-left: auto; white-space: nowrap; }
+
+/* ── Persebaran bar chart ────────────────────────────────────────── */
+.wil-chart-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px; margin-bottom: 18px;
+}
+.wil-chart-title { font-size: .9rem; font-weight: 700; margin-bottom: 4px; }
+.wil-chart-sub { font-size: .73rem; color: var(--text-3); margin-bottom: 18px; }
+.wil-bar-row {
+  display: grid; grid-template-columns: 140px 1fr 80px; align-items: center; gap: 10px;
+  margin-bottom: 7px;
+}
+@media (max-width: 560px) { .wil-bar-row { grid-template-columns: 100px 1fr 60px; } }
+.wil-bar-city {
+  font-size: .78rem; font-weight: 600; color: var(--text-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wil-bar-track { height: 16px; background: var(--border); border-radius: 99px; overflow: hidden; display: flex; }
+.wil-bar-seg { height: 100%; transition: width .5s; }
+.wil-bar-right { font-size: .72rem; color: var(--text-3); text-align: right; white-space: nowrap; }
+.wil-legend {
+  display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 16px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.wil-legend-item { display: flex; align-items: center; gap: 6px; font-size: .73rem; color: var(--text-2); }
+.wil-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+/* ── Detail table ────────────────────────────────────────────────── */
+.wil-table-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden;
+}
+.wil-table-header { padding: 16px 20px 0; }
+.wil-table-title { font-size: .9rem; font-weight: 700; margin-bottom: 14px; }
+.wil-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.wil-table th {
+  text-align: left; padding: 10px 14px; font-size: .7rem; font-weight: 700;
+  color: var(--text-3); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--card); white-space: nowrap; cursor: pointer;
+  user-select: none;
+}
+.wil-table th:hover { color: var(--primary); }
+.wil-table th.sort-asc::after  { content: ' ↑'; color: var(--primary); }
+.wil-table th.sort-desc::after { content: ' ↓'; color: var(--primary); }
+.wil-table td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text-2); vertical-align: middle; }
+.wil-table td:first-child { font-weight: 700; color: var(--text-1); }
+.wil-table tr:last-child td { border-bottom: none; }
+.wil-table tr:hover td { background: rgba(67,97,238,.03); }
+
+/* mini bar inside table */
+.wil-mini-bar { display: flex; height: 6px; border-radius: 99px; overflow: hidden; background: var(--border); min-width: 60px; }
+.wil-mini-seg { height: 100%; }
+
+/* rate pill */
+.rate-pill {
+  display: inline-block; padding: 2px 9px; border-radius: 99px;
+  font-size: .72rem; font-weight: 700;
+}
+.rate-green  { background: rgba(6,194,112,.15);  color: #06C270; }
+.rate-yellow { background: rgba(255,183,3,.15);   color: #d09500; }
+.rate-red    { background: rgba(239,35,60,.15);   color: #EF233C; }
+
+/* highlight kota */
+.kota-danger { color: var(--danger); }
+.kota-warn   { color: var(--warning); }
+
+/* ── Loading ─────────────────────────────────────────────────────── */
+.wil-loading {
+  text-align: center; padding: 60px 20px; color: var(--text-3); font-size: .9rem;
+}
+.wil-loading .spinner {
+  width: 32px; height: 32px; border: 3px solid var(--border);
+  border-top-color: var(--primary); border-radius: 50%;
+  animation: spin .8s linear infinite; margin: 0 auto 14px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* colors */
+.c-success { color: var(--success); }
+.c-danger  { color: var(--danger); }
+.c-warning { color: #d09500; }
+.c-primary { color: var(--primary); }
+</style>
+</head>
+<body>
+<div id="sidebar-slot"></div>
+<div id="header-slot"></div>
+<div class="main-content">
+  <div class="page" id="pageContent">
+    <div class="wil-loading"><div class="spinner"></div>Memuat...</div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let _wilDateFrom  = wibYMDOffset(-29);
+let _wilDateTo    = wibYMD();
+let _wilPreset    = '30h';
+let _wilSkuMap    = new Map();
+let _wilOrders    = [];
+let _wilSort      = { key: 'total', dir: 'desc' };
+let _wilSearch    = '';
+let _wilProduk    = '';
+let _wilEkspedisi = '';
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async () => {
+  await initSupabaseClient();
+  const user = await requireAuth();
+  if (!user) return;
+  _wilSkuMap = await dbGetSkuMap().catch(() => new Map());
+  renderLayout('laporan-wilayah', user);
+  renderPage();
+  await loadWilayah();
+})();
+
+// ── Render shell ──────────────────────────────────────────────────────────────
+function renderPage() {
+  document.getElementById('pageContent').innerHTML = `
+    <div class="wil-filter-bar">
+      <label>Periode</label>
+      <input type="date" id="wilFrom" value="${_wilDateFrom}" onchange="wilSetDate()">
+      <span style="color:var(--text-3);font-size:.8rem">–</span>
+      <input type="date" id="wilTo"   value="${_wilDateTo}"   onchange="wilSetDate()">
+      <button class="wil-preset ${_wilPreset==='7h'  ?'active':''}" onclick="wilPreset('7h')">7 Hari</button>
+      <button class="wil-preset ${_wilPreset==='14h' ?'active':''}" onclick="wilPreset('14h')">14 Hari</button>
+      <button class="wil-preset ${_wilPreset==='30h' ?'active':''}" onclick="wilPreset('30h')">30 Hari</button>
+      <button class="wil-refresh" onclick="wilRefresh()">🔄 Refresh</button>
+    </div>
+    <div id="wilBody">
+      <div class="wil-loading"><div class="spinner"></div>Memuat data...</div>
+    </div>
+  `;
+}
+
+function wilPreset(key) {
+  _wilPreset = key;
+  const days = key === '30h' ? 30 : key === '14h' ? 14 : 7;
+  _wilDateFrom = wibYMDOffset(-(days - 1));
+  _wilDateTo   = wibYMD();
+  document.getElementById('wilFrom').value = _wilDateFrom;
+  document.getElementById('wilTo').value   = _wilDateTo;
+  document.querySelectorAll('.wil-preset').forEach(el => el.classList.remove('active'));
+  event.target.classList.add('active');
+  loadWilayah();
+}
+
+function wilSetDate() {
+  _wilDateFrom = document.getElementById('wilFrom').value;
+  _wilDateTo   = document.getElementById('wilTo').value;
+  if (!_wilDateFrom || !_wilDateTo) return;
+  _wilPreset = 'custom';
+  document.querySelectorAll('.wil-preset').forEach(el => el.classList.remove('active'));
+  loadWilayah();
+}
+
+function wilRefresh() {
+  sessionStorage.removeItem(`cs_orders_${_wilDateFrom}_${_wilDateTo}`);
+  loadWilayah();
+}
+
+// ── Load ──────────────────────────────────────────────────────────────────────
+async function loadWilayah() {
+  const body = document.getElementById('wilBody');
+  if (body) body.innerHTML = '<div class="wil-loading"><div class="spinner"></div>Memuat data...</div>';
+  try {
+    _wilOrders = await dbGetAkuisisiOrders(_wilDateFrom, _wilDateTo, _wilSkuMap);
+    wilRender();
+  } catch (e) {
+    if (body) body.innerHTML = `<div class="wil-loading" style="color:var(--danger)">⚠️ Gagal: ${escapeHtml(e.message)}<br><button class="wil-preset" style="margin-top:12px" onclick="loadWilayah()">Coba Lagi</button></div>`;
+  }
+}
+
+// ── Compute ───────────────────────────────────────────────────────────────────
+function computeWilayah(orders) {
+  const withResi = orders.filter(o => !o.id.startsWith('IMP-') && o.kota_tujuan);
+
+  // Filter produk & ekspedisi
+  const filtered = withResi.filter(o => {
+    if (_wilProduk    && (o.produk || '').split(' + ')[0].trim() !== _wilProduk) return false;
+    if (_wilEkspedisi && o.ekspedisi !== _wilEkspedisi) return false;
+    return true;
+  });
+
+  // Group by kota
+  const kotaMap = {};
+  filtered.forEach(o => {
+    const kota = (o.kota_tujuan || '').trim().toUpperCase() || 'TIDAK DIKETAHUI';
+    if (!kotaMap[kota]) kotaMap[kota] = { kota, total: 0, sampai: 0, retur: 0, bermasalah: 0, dikirim: 0, otw: 0, belum: 0, totalCOD: 0 };
+    const d = kotaMap[kota];
+    d.total++;
+    d.totalCOD += o.total || 0;
+    const s = o.status_resi;
+    if (s === 'SAMPAI')     d.sampai++;
+    else if (s === 'RETUR') d.retur++;
+    else if (s === 'BERMASALAH') d.bermasalah++;
+    else if (s === 'DIKIRIM')    d.dikirim++;
+    else if (s === 'OTW')        d.otw++;
+    else d.belum++;
+  });
+
+  const rows = Object.values(kotaMap).map(d => {
+    const settled = d.sampai + d.retur;
+    const rateNum = settled > 0 ? Math.round(d.sampai / settled * 100) : null;
+    const rtsNum  = settled > 0 ? Math.round(d.retur  / settled * 100) : null;
+    return { ...d, rateNum, rtsNum };
+  });
+
+  // Unique filter options
+  const produkOpts = [...new Set(withResi.map(o => (o.produk || '').split(' + ')[0].trim()).filter(Boolean))].sort();
+  const ekspOpts   = [...new Set(withResi.map(o => o.ekspedisi).filter(Boolean))].sort();
+
+  // Summary stats
+  const totalKota   = rows.length;
+  const totalPaket  = rows.reduce((s, r) => s + r.total, 0);
+  const totalSampai = rows.reduce((s, r) => s + r.sampai, 0);
+  const totalRetur  = rows.reduce((s, r) => s + r.retur, 0);
+  const totalBermasalah = rows.reduce((s, r) => s + r.bermasalah, 0);
+  const settled = totalSampai + totalRetur;
+  const rateGlobal = settled > 0 ? Math.round(totalSampai / settled * 100) : null;
+
+  const kotaTerbaik   = [...rows].filter(r => r.rateNum !== null && r.total >= 3).sort((a, b) => b.rateNum - a.rateNum)[0];
+  const kotaBermasalah = [...rows].filter(r => r.rtsNum !== null && r.total >= 3).sort((a, b) => b.rtsNum - a.rtsNum)[0];
+
+  return { rows, totalKota, totalPaket, totalSampai, totalRetur, totalBermasalah, rateGlobal, kotaTerbaik, kotaBermasalah, produkOpts, ekspOpts };
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function wilRender() {
+  const body = document.getElementById('wilBody');
+  if (!body) return;
+  const m = computeWilayah(_wilOrders);
+
+  // Sort rows
+  let rows = [...m.rows];
+  if (_wilSearch) {
+    const q = _wilSearch.toLowerCase();
+    rows = rows.filter(r => r.kota.toLowerCase().includes(q));
+  }
+  rows.sort((a, b) => {
+    let va = a[_wilSort.key], vb = b[_wilSort.key];
+    if (va === null) va = -1;
+    if (vb === null) vb = -1;
+    return _wilSort.dir === 'desc' ? vb - va : va - vb;
+  });
+
+  // ── Summary cards ──
+  const summaryHtml = `
+    <div class="wil-summary">
+      <div class="wil-stat">
+        <div class="wil-stat-label">Total Kota Tujuan</div>
+        <div class="wil-stat-num c-primary">${m.totalKota}</div>
+        <div class="wil-stat-sub">kota ter-cover</div>
+      </div>
+      <div class="wil-stat">
+        <div class="wil-stat-label">Total Paket</div>
+        <div class="wil-stat-num">${m.totalPaket.toLocaleString('id-ID')}</div>
+        <div class="wil-stat-sub">${_wilDateFrom} s/d ${_wilDateTo}</div>
+      </div>
+      <div class="wil-stat">
+        <div class="wil-stat-label">Tingkat Sampai</div>
+        <div class="wil-stat-num ${m.rateGlobal===null?'':m.rateGlobal>=85?'c-success':m.rateGlobal>=70?'c-warning':'c-danger'}">
+          ${m.rateGlobal !== null ? m.rateGlobal + '%' : '—'}
+        </div>
+        <div class="wil-stat-sub">${m.totalSampai} sampai · ${m.totalRetur} retur</div>
+      </div>
+      <div class="wil-stat">
+        <div class="wil-stat-label">Kota Terbaik</div>
+        <div class="wil-stat-num c-success" style="font-size:1.1rem;line-height:1.3">${m.kotaTerbaik ? escapeHtml(m.kotaTerbaik.kota) : '—'}</div>
+        <div class="wil-stat-sub">${m.kotaTerbaik ? m.kotaTerbaik.rateNum + '% sampai' : ''}</div>
+      </div>
+      <div class="wil-stat">
+        <div class="wil-stat-label">RTS Tertinggi</div>
+        <div class="wil-stat-num c-danger" style="font-size:1.1rem;line-height:1.3">${m.kotaBermasalah ? escapeHtml(m.kotaBermasalah.kota) : '—'}</div>
+        <div class="wil-stat-sub">${m.kotaBermasalah ? m.kotaBermasalah.rtsNum + '% RTS' : ''}</div>
+      </div>
+    </div>`;
+
+  // ── Filter controls ──
+  const produkSelect = `<select class="wil-select" onchange="wilSetProduk(this.value)">
+    <option value="">Semua Produk</option>
+    ${m.produkOpts.map(p => `<option value="${escapeHtml(p)}" ${_wilProduk===p?'selected':''}>${escapeHtml(p)}</option>`).join('')}
+  </select>`;
+
+  const ekspSelect = `<select class="wil-select" onchange="wilSetEksp(this.value)">
+    <option value="">Semua Ekspedisi</option>
+    ${m.ekspOpts.map(e => `<option value="${escapeHtml(e)}" ${_wilEkspedisi===e?'selected':''}>${escapeHtml(e)}</option>`).join('')}
+  </select>`;
+
+  const controlsHtml = `
+    <div class="wil-controls">
+      <input type="text" class="wil-search" placeholder="🔍 Cari kota..." value="${escapeHtml(_wilSearch)}" oninput="wilSetSearch(this.value)">
+      ${produkSelect}
+      ${ekspSelect}
+      <span style="color:var(--text-3);font-size:.72rem;font-weight:600">Urutkan:</span>
+      <button class="wil-sort-btn ${_wilSort.key==='total'?'active':''}"       onclick="wilSetSort('total')">Volume</button>
+      <button class="wil-sort-btn ${_wilSort.key==='retsNum'?'active':''}"     onclick="wilSetSort('rtsNum')">RTS %</button>
+      <button class="wil-sort-btn ${_wilSort.key==='bermasalah'?'active':''}"  onclick="wilSetSort('bermasalah')">Bermasalah</button>
+      <button class="wil-sort-btn ${_wilSort.key==='rateNum'?'active':''}"     onclick="wilSetSort('rateNum')">Rate Sampai</button>
+      <span class="wil-count">${rows.length} kota</span>
+    </div>`;
+
+  // ── Bar chart (top 20 by volume) ──
+  const chartRows = [...rows].sort((a, b) => b.total - a.total).slice(0, 20);
+  const maxTotal = Math.max(...chartRows.map(r => r.total), 1);
+
+  const barRowsHtml = chartRows.map(r => {
+    const w     = (r.total / maxTotal * 100).toFixed(1);
+    const wS    = r.total ? (r.sampai     / r.total * 100).toFixed(1) : 0;
+    const wR    = r.total ? (r.retur      / r.total * 100).toFixed(1) : 0;
+    const wB    = r.total ? (r.bermasalah / r.total * 100).toFixed(1) : 0;
+    const wD    = r.total ? ((r.dikirim + r.otw) / r.total * 100).toFixed(1) : 0;
+    const wGray = r.total ? (r.belum      / r.total * 100).toFixed(1) : 0;
+    const rateLabel = r.rateNum !== null ? `${r.rateNum}%` : '—';
+    const rateColor = r.rateNum === null ? '' : r.rateNum >= 85 ? 'color:#06C270' : r.rateNum >= 70 ? 'color:#d09500' : 'color:#EF233C';
+    return `
+      <div class="wil-bar-row">
+        <div class="wil-bar-city" title="${escapeHtml(r.kota)}">${escapeHtml(r.kota)}</div>
+        <div style="position:relative">
+          <div class="wil-bar-track" style="width:${w}%">
+            <div class="wil-bar-seg" style="width:${wS}%;background:#06C270"></div>
+            <div class="wil-bar-seg" style="width:${wR}%;background:#EF233C"></div>
+            <div class="wil-bar-seg" style="width:${wB}%;background:#FFB703"></div>
+            <div class="wil-bar-seg" style="width:${wD}%;background:#4361EE"></div>
+            <div class="wil-bar-seg" style="width:${wGray}%;background:var(--border)"></div>
+          </div>
+        </div>
+        <div class="wil-bar-right">${r.total} paket · <span style="${rateColor};font-weight:700">${rateLabel}</span></div>
+      </div>`;
+  }).join('');
+
+  const chartHtml = `
+    <div class="wil-chart-card">
+      <div class="wil-chart-title">Persebaran Paket per Kota (Top 20 Volume)</div>
+      <div class="wil-chart-sub">Lebar bar = proporsi dari kota terbanyak · warna = komposisi status</div>
+      ${barRowsHtml || '<div style="color:var(--text-3);font-size:.82rem">Belum ada data</div>'}
+      <div class="wil-legend">
+        <div class="wil-legend-item"><div class="wil-legend-dot" style="background:#06C270"></div>Sampai</div>
+        <div class="wil-legend-item"><div class="wil-legend-dot" style="background:#EF233C"></div>Retur (RTS)</div>
+        <div class="wil-legend-item"><div class="wil-legend-dot" style="background:#FFB703"></div>Bermasalah</div>
+        <div class="wil-legend-item"><div class="wil-legend-dot" style="background:#4361EE"></div>Dikirim/OTW</div>
+        <div class="wil-legend-item"><div class="wil-legend-dot" style="background:var(--border)"></div>Belum dicek</div>
+      </div>
+    </div>`;
+
+  // ── Detail table ──
+  const tableRowsHtml = rows.map((r, i) => {
+    const rateClass = r.rateNum === null ? '' : r.rateNum >= 85 ? 'rate-green' : r.rateNum >= 70 ? 'rate-yellow' : 'rate-red';
+    const kotaClass = r.rtsNum !== null && r.rtsNum >= 30 ? 'kota-danger' : r.rtsNum !== null && r.rtsNum >= 15 ? 'kota-warn' : '';
+    const wS = r.total ? (r.sampai     / r.total * 100).toFixed(0) : 0;
+    const wR = r.total ? (r.retur      / r.total * 100).toFixed(0) : 0;
+    const wB = r.total ? (r.bermasalah / r.total * 100).toFixed(0) : 0;
+    const wD = r.total ? ((r.dikirim+r.otw) / r.total * 100).toFixed(0) : 0;
+    return `
+      <tr>
+        <td style="font-size:.72rem;color:var(--text-3);width:28px">${i + 1}</td>
+        <td class="${kotaClass}">${escapeHtml(r.kota)}</td>
+        <td style="font-weight:700">${r.total}</td>
+        <td class="c-success">${r.sampai}</td>
+        <td class="c-danger">${r.retur}</td>
+        <td style="color:var(--warning)">${r.bermasalah}</td>
+        <td style="color:var(--primary)">${r.dikirim + r.otw}</td>
+        <td>
+          <div class="wil-mini-bar">
+            <div class="wil-mini-seg" style="width:${wS}%;background:#06C270"></div>
+            <div class="wil-mini-seg" style="width:${wR}%;background:#EF233C"></div>
+            <div class="wil-mini-seg" style="width:${wB}%;background:#FFB703"></div>
+            <div class="wil-mini-seg" style="width:${wD}%;background:#4361EE"></div>
+          </div>
+        </td>
+        <td><span class="rate-pill ${rateClass}">${r.rateNum !== null ? r.rateNum + '%' : '—'}</span></td>
+        <td>${r.rtsNum !== null ? '<span class="rate-pill ' + (r.rtsNum >= 30 ? 'rate-red' : r.rtsNum >= 15 ? 'rate-yellow' : 'rate-green') + '">' + r.rtsNum + '%</span>' : '—'}</td>
+        <td style="font-size:.75rem">${fmtFull(r.totalCOD)}</td>
+      </tr>`;
+  }).join('');
+
+  const tableHtml = `
+    <div class="wil-table-card">
+      <div class="wil-table-header">
+        <div class="wil-table-title">Detail per Kota Tujuan</div>
+      </div>
+      <div class="table-wrap">
+        <table class="wil-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th onclick="wilSetSort('kota')" class="${_wilSort.key==='kota'?'sort-'+_wilSort.dir:''}">Kota</th>
+              <th onclick="wilSetSort('total')" class="${_wilSort.key==='total'?'sort-'+_wilSort.dir:''}">Total</th>
+              <th onclick="wilSetSort('sampai')" class="${_wilSort.key==='sampai'?'sort-'+_wilSort.dir:''}">Sampai</th>
+              <th onclick="wilSetSort('retur')" class="${_wilSort.key==='retur'?'sort-'+_wilSort.dir:''}">Retur</th>
+              <th onclick="wilSetSort('bermasalah')" class="${_wilSort.key==='bermasalah'?'sort-'+_wilSort.dir:''}">Bermasalah</th>
+              <th onclick="wilSetSort('dikirim')" class="${_wilSort.key==='dikirim'?'sort-'+_wilSort.dir:''}">Dikirim/OTW</th>
+              <th>Komposisi</th>
+              <th onclick="wilSetSort('rateNum')" class="${_wilSort.key==='rateNum'?'sort-'+_wilSort.dir:''}">Rate Sampai</th>
+              <th onclick="wilSetSort('rtsNum')" class="${_wilSort.key==='rtsNum'?'sort-'+_wilSort.dir:''}">RTS %</th>
+              <th onclick="wilSetSort('totalCOD')" class="${_wilSort.key==='totalCOD'?'sort-'+_wilSort.dir:''}">Nilai COD</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRowsHtml || '<tr><td colspan="11" style="text-align:center;padding:32px;color:var(--text-3)">Tidak ada data</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+
+  body.innerHTML = summaryHtml + controlsHtml + chartHtml + tableHtml +
+    `<div style="font-size:.72rem;color:var(--text-3);text-align:right;padding:10px 0 4px">
+      Data ${_wilDateFrom} s/d ${_wilDateTo} · adsy-tracking
+    </div>`;
+}
+
+// ── Event handlers ────────────────────────────────────────────────────────────
+function wilSetSort(key) {
+  if (_wilSort.key === key) {
+    _wilSort.dir = _wilSort.dir === 'desc' ? 'asc' : 'desc';
+  } else {
+    _wilSort = { key, dir: key === 'kota' ? 'asc' : 'desc' };
+  }
+  wilRender();
+}
+function wilSetSearch(val) { _wilSearch = val; wilRender(); }
+function wilSetProduk(val) { _wilProduk = val; wilRender(); }
+function wilSetEksp(val)   { _wilEkspedisi = val; wilRender(); }
+</script>
+</body>
+</html>
