@@ -9,7 +9,7 @@
 
 const crypto = require('crypto');
 const { sbFetch } = require('../lib/supabase-rest');
-const { notifBermasalah } = require('../lib/notif-wa');
+const { insertRoomWork } = require('../lib/room-work-helper');
 
 // Matikan body parser bawaan Vercel — kita butuh raw body untuk verifikasi HMAC
 // (parse ulang JSON → bytes beda → signature tidak cocok)
@@ -154,14 +154,15 @@ module.exports = async function handler(req, res) {
 
     console.log(`[webhook] ${cnote_no} → ${stage} (${status_category})`);
 
-    // 8. Kirim notif WA ke CS kalau baru jadi BERMASALAH (bukan sekadar update ulang)
+    // 8. Masukkan ke Room Work + kirim FU 1 kalau baru jadi BERMASALAH
     if (stage === 'BERMASALAH' && existing?.status_resi !== 'BERMASALAH') {
-      notifBermasalah({
-        resi:       cnote_no,
-        csNama:     existing?.cs_nama || '',
-        kota:       existing?.kota_tujuan || '',
-        ekspedisi:  courier || '',
-      }).catch(e => console.error('[notif] Gagal kirim WA:', e.message));
+      insertRoomWork({
+        resi:      cnote_no,
+        csNama:    existing?.cs_nama    || '',
+        kota:      existing?.kota_tujuan || '',
+        ekspedisi: courier              || '',
+        caseUndel: status_category      || '',
+      }).catch(e => console.error('[room-work] Gagal insert:', e.message));
     }
 
     res.status(200).json({ ok: true, resi: cnote_no, stage });
