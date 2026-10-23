@@ -63,7 +63,7 @@ function renderLayout(activePage, user, products = []) {
         <a href="tracking-akuisisi.html" class="nav-item ${isAkuisisiAll ? 'active' : ''}">
           <span class="nav-icon">${ICON_TRACKING}</span><span>Akuisisi</span>
         </a>
-        ${produkItems}
+        <div id="sidebar-products">${produkItems}</div>
         <div class="sidebar-group-label">PENGATURAN</div>
         <a href="settings-tim.html" class="nav-item ${activePage === 'settings-tim' ? 'active' : ''}">
           <span class="nav-icon">${ICON_SETTINGS}</span><span>Kelola Tim</span>
@@ -105,6 +105,22 @@ function renderLayout(activePage, user, products = []) {
       </div>
     </header>
   `;
+}
+
+// Update sub-item produk di sidebar setelah order di-load
+// Dipanggil dari tracking-common.js setelah load() selesai
+function updateSidebarProducts(produkNames) {
+  const container = document.getElementById('sidebar-products');
+  if (!container) return;
+  const activeProduk = new URLSearchParams(location.search).get('produk') || '';
+  container.innerHTML = produkNames.map(nama => {
+    const isActive = activeProduk === nama;
+    return `<a href="tracking-akuisisi.html?produk=${encodeURIComponent(nama)}"
+        class="nav-item nav-item-sub ${isActive ? 'active' : ''}">
+      <span class="nav-icon">${ICON_BOX}</span>
+      <span>${escapeHtml(nama)}</span>
+    </a>`;
+  }).join('');
 }
 
 function openSidebar()  { document.getElementById('sidebar')?.classList.add('open'); document.getElementById('sidebarOverlay')?.classList.add('open'); }

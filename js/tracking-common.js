@@ -271,6 +271,10 @@ function initTrackingPage(cfg) {
       st.lastUpdated = new Date();
       renderPage();
       setLastUpdatedIndicator();
+      // Update sidebar dengan produk yang benar-benar ada di order periode ini
+      if (typeof updateSidebarProducts === 'function') {
+        updateSidebarProducts(produkOptions());
+      }
     } catch (e) {
       if (!silent) showError('Gagal memuat data tracking: ' + e.message);
     }
