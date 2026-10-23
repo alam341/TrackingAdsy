@@ -317,16 +317,14 @@ function rwRenderTable() {
 
     const fuStatusCol = _rwTab === 'aktif' ? fuBadge : '';
 
-    // Aksi buttons
+    // Aksi buttons — Investigasi hanya muncul di tab Lapor Ekspedisi
     const btnBales = o.cs_responded
       ? `<button class="rw-btn done-bales" disabled>✅ CS Bales</button>`
       : `<button class="rw-btn" id="btn-bales-${o.id}" onclick="rwAksi(${o.id},'cs_responded')">✅ CS Bales</button>`;
     const btnLapor = o.lapor_ekspedisi
       ? `<button class="rw-btn done-lapor" disabled>📤 Sudah Lapor</button>`
       : `<button class="rw-btn" id="btn-lapor-${o.id}" onclick="rwAksi(${o.id},'lapor_ekspedisi')">📤 Lapor Eksp.</button>`;
-    const btnInvst = o.investigasi
-      ? `<button class="rw-btn done-invst" disabled>🔍 Investigasi</button>`
-      : `<button class="rw-btn" id="btn-invst-${o.id}" onclick="rwAksi(${o.id},'investigasi')">🔍 Investigasi</button>`;
+    const btnInvst = '';
 
     return `<tr>
       <td style="font-size:.7rem;color:var(--text-3);width:24px">${offset + i + 1}</td>
