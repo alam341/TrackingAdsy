@@ -127,12 +127,14 @@ function updateSidebarProducts(produkNames) {
   if (activeProduk) _setSidebarOpen(true);
 }
 
+const _ON_TRACKING_PAGE = location.pathname.includes('tracking-akuisisi');
+
 function sidebarToggleProduk() {
+  if (!_ON_TRACKING_PAGE) { location.href = 'tracking-akuisisi.html'; return; }
   const container = document.getElementById('sidebar-products');
   if (!container) return;
   const isOpen = container.style.maxHeight !== '0px' && container.style.maxHeight !== '0';
   _setSidebarOpen(!isOpen);
-  // Kalau collapse → clear filter ke semua
   if (isOpen) sidebarSetProduk('');
 }
 
@@ -144,6 +146,10 @@ function _setSidebarOpen(open) {
 }
 
 function sidebarSetProduk(nama) {
+  if (!_ON_TRACKING_PAGE) {
+    location.href = nama ? `tracking-akuisisi.html?produk=${encodeURIComponent(nama)}` : 'tracking-akuisisi.html';
+    return;
+  }
   history.pushState({}, '', nama ? `tracking-akuisisi.html?produk=${encodeURIComponent(nama)}` : 'tracking-akuisisi.html');
 
   document.querySelectorAll('#sidebar-products .nav-item-sub').forEach(el => {
