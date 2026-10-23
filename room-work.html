@@ -212,7 +212,7 @@ function rwRender() {
   // Hitung per tab untuk summary & badge
   const counts = {
     aktif:        _rwData.filter(o => !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi).length,
-    tidak_bales:  _rwData.filter(o => o.fu_count >= 3 && !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi).length,
+    tidak_bales:  _rwData.filter(o => o.fu_count >= 4 && !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi).length,
     bales:        _rwData.filter(o => o.cs_responded).length,
     lapor:        _rwData.filter(o => o.lapor_ekspedisi).length,
     investigasi:  _rwData.filter(o => o.investigasi).length,
@@ -221,8 +221,8 @@ function rwRender() {
 
   // Subset aktif: fu breakdown
   const aktifRows = _rwData.filter(o => !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi);
-  const fu1Count  = aktifRows.filter(o => o.fu_count === 1).length;
-  const fu2Count  = aktifRows.filter(o => o.fu_count === 2).length;
+  const fuInfoCount = aktifRows.filter(o => o.fu_count === 1).length;
+  const fu1Count    = aktifRows.filter(o => o.fu_count === 2).length;
 
   // Summary cards
   const summary = document.getElementById('rwSummary');
@@ -233,14 +233,14 @@ function rwRender() {
       <div class="rw-card-sub">Perlu tindak lanjut</div>
     </div>
     <div class="rw-card" style="cursor:default">
-      <div class="rw-card-label">📨 FU 1 Terkirim</div>
-      <div class="rw-card-num" style="color:var(--warning)">${fu1Count}</div>
-      <div class="rw-card-sub">Menunggu balasan</div>
+      <div class="rw-card-label">📨 FU Info Terkirim</div>
+      <div class="rw-card-num" style="color:var(--warning)">${fuInfoCount}</div>
+      <div class="rw-card-sub">Menunggu FU 1 besok</div>
     </div>
     <div class="rw-card" style="cursor:default">
-      <div class="rw-card-label">🔔 FU 2 Terkirim</div>
-      <div class="rw-card-num" style="color:#c06000">${fu2Count}</div>
-      <div class="rw-card-sub">Pengingat ke-2</div>
+      <div class="rw-card-label">🔔 FU 1 Terkirim</div>
+      <div class="rw-card-num" style="color:#c06000">${fu1Count}</div>
+      <div class="rw-card-sub">Menunggu FU 2 besok</div>
     </div>
     <div class="rw-card ${_rwTab==='tidak_bales'?'active':''}" onclick="rwSetTab('tidak_bales')">
       <div class="rw-card-label">🚨 CS Tidak Bales</div>
