@@ -85,6 +85,9 @@ function renderLayout(activePage, user, products = []) {
         <a href="rincian-paket.html" class="nav-item ${activePage === 'rincian-paket' ? 'active' : ''}">
           <span class="nav-icon">${ICON_ALERT}</span><span>Rincian Paket</span>
         </a>
+        <a href="room-work.html" class="nav-item ${activePage === 'room-work' ? 'active' : ''}">
+          <span class="nav-icon">${ICON_TRACKING}</span><span>Room Work</span>
+        </a>
         <div class="sidebar-group-label">PENGATURAN</div>
         <a href="settings-tim.html" class="nav-item ${activePage === 'settings-tim' ? 'active' : ''}">
           <span class="nav-icon">${ICON_SETTINGS}</span><span>Kelola Tim</span>
