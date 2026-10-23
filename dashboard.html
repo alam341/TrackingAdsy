@@ -147,10 +147,10 @@
 <script src="js/app.js"></script>
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
-let _dashDateFrom = wibYMDOffset(-6); // 7 hari (hari ini + 6 ke belakang)
 let _dashDateTo   = wibYMD();
+let _dashDateFrom = wibYMD().slice(0, 7) + '-01'; // awal bulan ini
 let _dashSkuMap   = new Map();
-let _activePreset = '7h';
+let _activePreset = 'bulan-ini';
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 (async () => {
@@ -171,9 +171,10 @@ function renderDashPage() {
       <input type="date" id="dashFrom" value="${_dashDateFrom}" onchange="dashSetDate()">
       <span style="color:var(--text-3);font-size:.8rem">–</span>
       <input type="date" id="dashTo" value="${_dashDateTo}" onchange="dashSetDate()">
-      <button class="dash-preset ${_activePreset==='7h'?'active':''}"  onclick="dashPreset('7h')">7 Hari</button>
-      <button class="dash-preset ${_activePreset==='14h'?'active':''}" onclick="dashPreset('14h')">14 Hari</button>
-      <button class="dash-preset ${_activePreset==='30h'?'active':''}" onclick="dashPreset('30h')">30 Hari</button>
+      <button class="dash-preset ${_activePreset==='bulan-ini'?'active':''}" onclick="dashPreset('bulan-ini')">Bulan Ini</button>
+      <button class="dash-preset ${_activePreset==='7h'?'active':''}"        onclick="dashPreset('7h')">7 Hari</button>
+      <button class="dash-preset ${_activePreset==='14h'?'active':''}"       onclick="dashPreset('14h')">14 Hari</button>
+      <button class="dash-preset ${_activePreset==='30h'?'active':''}"       onclick="dashPreset('30h')">30 Hari</button>
       <button class="dash-refresh" onclick="dashRefresh()">🔄 Refresh</button>
     </div>
     <div id="dashBody">
@@ -184,9 +185,13 @@ function renderDashPage() {
 
 function dashPreset(key) {
   _activePreset = key;
-  const days = key === '30h' ? 30 : key === '14h' ? 14 : 7;
-  _dashDateFrom = wibYMDOffset(-(days - 1));
   _dashDateTo   = wibYMD();
+  if (key === 'bulan-ini') {
+    _dashDateFrom = wibYMD().slice(0, 7) + '-01';
+  } else {
+    const days = key === '30h' ? 30 : key === '14h' ? 14 : 7;
+    _dashDateFrom = wibYMDOffset(-(days - 1));
+  }
   document.getElementById('dashFrom').value = _dashDateFrom;
   document.getElementById('dashTo').value   = _dashDateTo;
   document.querySelectorAll('.dash-preset').forEach(el => {
