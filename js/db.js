@@ -208,7 +208,7 @@ async function dbGetAkuisisiOrders(dateFrom, dateTo, preloadedSkuMap = null) {
 
 // ── Mapping kode SKU -> nama produk ──────────────────────────────────────────
 async function dbGetSkuMap() {
-  const { data, error } = await _sb.from('sku_produk').select('kode,nama_produk').neq('aktif', false).order('urutan');
+  const { data, error } = await _sb.from('sku_produk').select('kode,nama_produk').order('urutan');
   if (error) throw error;
   const map = new Map();
   (data || []).forEach(r => map.set(String(r.kode).trim().toUpperCase(), r.nama_produk));
