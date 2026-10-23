@@ -132,11 +132,12 @@ const RW_PAGE_SIZE = 20;
 
 // ── Tab definitions ────────────────────────────────────────────────────────────
 const RW_TABS = [
-  { key: 'aktif',       label: 'Aktif',             emoji: '🔴' },
-  { key: 'bales',       label: 'CS Sudah Bales',    emoji: '✅' },
-  { key: 'lapor',       label: 'Lapor Ekspedisi',   emoji: '📤' },
-  { key: 'investigasi', label: 'Investigasi',        emoji: '🔍' },
-  { key: 'semua',       label: 'Semua',              emoji: '📋' },
+  { key: 'aktif',        label: 'Aktif',             emoji: '🔴' },
+  { key: 'tidak_bales',  label: 'CS Tidak Bales',    emoji: '🚨' },
+  { key: 'bales',        label: 'CS Sudah Bales',    emoji: '✅' },
+  { key: 'lapor',        label: 'Lapor Ekspedisi',   emoji: '📤' },
+  { key: 'investigasi',  label: 'Investigasi',        emoji: '🔍' },
+  { key: 'semua',        label: 'Semua',              emoji: '📋' },
 ];
 
 // ── Case Undel mapping (Mengantar status_category → label friendly) ───────────
@@ -210,18 +211,18 @@ function rwRender() {
 
   // Hitung per tab untuk summary & badge
   const counts = {
-    aktif:       _rwData.filter(o => !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi).length,
-    bales:       _rwData.filter(o => o.cs_responded).length,
-    lapor:       _rwData.filter(o => o.lapor_ekspedisi).length,
-    investigasi: _rwData.filter(o => o.investigasi).length,
-    semua:       _rwData.length,
+    aktif:        _rwData.filter(o => !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi).length,
+    tidak_bales:  _rwData.filter(o => o.fu_count >= 3 && !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi).length,
+    bales:        _rwData.filter(o => o.cs_responded).length,
+    lapor:        _rwData.filter(o => o.lapor_ekspedisi).length,
+    investigasi:  _rwData.filter(o => o.investigasi).length,
+    semua:        _rwData.length,
   };
 
   // Subset aktif: fu breakdown
   const aktifRows = _rwData.filter(o => !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi);
   const fu1Count  = aktifRows.filter(o => o.fu_count === 1).length;
   const fu2Count  = aktifRows.filter(o => o.fu_count === 2).length;
-  const fu3Count  = aktifRows.filter(o => o.fu_count >= 3).length;
 
   // Summary cards
   const summary = document.getElementById('rwSummary');
@@ -241,10 +242,10 @@ function rwRender() {
       <div class="rw-card-num" style="color:#c06000">${fu2Count}</div>
       <div class="rw-card-sub">Pengingat ke-2</div>
     </div>
-    <div class="rw-card" style="cursor:default">
-      <div class="rw-card-label">🚨 Max FU (3x)</div>
-      <div class="rw-card-num c-danger">${fu3Count}</div>
-      <div class="rw-card-sub">Tidak ada balasan</div>
+    <div class="rw-card ${_rwTab==='tidak_bales'?'active':''}" onclick="rwSetTab('tidak_bales')">
+      <div class="rw-card-label">🚨 CS Tidak Bales</div>
+      <div class="rw-card-num c-danger">${counts.tidak_bales}</div>
+      <div class="rw-card-sub">Max FU, perlu eskalasi</div>
     </div>
     <div class="rw-card ${_rwTab==='bales'?'active':''}" onclick="rwSetTab('bales')">
       <div class="rw-card-label">✅ CS Bales</div>
@@ -271,8 +272,9 @@ function rwRender() {
 
 function rwGetTabRows() {
   let rows = _rwData;
-  if (_rwTab === 'aktif')       rows = rows.filter(o => !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi);
-  else if (_rwTab === 'bales')  rows = rows.filter(o =>  o.cs_responded);
+  if (_rwTab === 'aktif')            rows = rows.filter(o => !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi);
+  else if (_rwTab === 'tidak_bales') rows = rows.filter(o => o.fu_count >= 3 && !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi);
+  else if (_rwTab === 'bales')       rows = rows.filter(o =>  o.cs_responded);
   else if (_rwTab === 'lapor')  rows = rows.filter(o =>  o.lapor_ekspedisi);
   else if (_rwTab === 'investigasi') rows = rows.filter(o => o.investigasi);
 
