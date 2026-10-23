@@ -34,7 +34,7 @@
   // Baca filter produk dari URL param (klik sidebar produk)
   const urlProduk = new URLSearchParams(location.search).get('produk') || '';
 
-  renderLayout('tracking-akuisisi', user, products);
+  renderLayout('tracking-akuisisi', user, []); // produk diisi dinamis setelah order load
   initTrackingPage({
     table: 'akuisisi_orders',
     domain: 'akuisisi',
