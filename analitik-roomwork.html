@@ -32,11 +32,11 @@
 
 /* ── Summary cards ────────────────────────────────────────────────── */
 .ar-summary {
-  display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 20px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px;
 }
-@media (max-width: 1100px) { .ar-summary { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 600px)  { .ar-summary { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 380px)  { .ar-summary { grid-template-columns: 1fr; } }
+.ar-card.hero { grid-column: span 1; }
+@media (max-width: 768px) { .ar-summary { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+@media (max-width: 420px) { .ar-summary { grid-template-columns: 1fr; } }
 .ar-card {
   background: var(--card); border: 1px solid var(--border);
   border-radius: 14px; padding: 18px 20px;
@@ -155,7 +155,8 @@ function arRenderPage() {
     </div>
 
     <div id="arSummary" class="ar-summary">
-      ${Array(6).fill(`<div class="ar-card"><div class="ar-skel" style="width:65%"></div><div class="ar-skel big" style="margin:8px 0"></div><div class="ar-skel" style="width:75%"></div></div>`).join('')}
+      <div class="ar-card" style="grid-column:span 2"><div class="ar-skel" style="width:55%"></div><div class="ar-skel big" style="margin:8px 0"></div><div class="ar-skel" style="width:70%"></div></div>
+      ${Array(4).fill(`<div class="ar-card"><div class="ar-skel" style="width:65%"></div><div class="ar-skel big" style="margin:8px 0"></div><div class="ar-skel" style="width:75%"></div></div>`).join('')}
     </div>
 
     <div class="ar-grid" id="arGrid">
@@ -209,10 +210,15 @@ function arRender() {
 
   const summaryEl = document.getElementById('arSummary');
   if (summaryEl) summaryEl.innerHTML = `
-    <div class="ar-card">
+    <div class="ar-card" style="grid-column:span 2">
       <div class="ar-card-label">📦 Total Bermasalah</div>
-      <div class="ar-card-num">${total}</div>
-      <div class="ar-card-sub">Semua paket masuk Room Work</div>
+      <div class="ar-card-num">${total.toLocaleString('id-ID')}</div>
+      <div class="ar-card-sub">Semua paket yang masuk Room Work</div>
+    </div>
+    <div class="ar-card">
+      <div class="ar-card-label">📊 Respons Rate CS</div>
+      <div class="ar-card-num ${rateColor}">${respRate}%</div>
+      <div class="ar-card-sub">CS bales / total bermasalah</div>
     </div>
     <div class="ar-card">
       <div class="ar-card-label">🚨 CS Tidak Bales</div>
@@ -233,11 +239,6 @@ function arRender() {
       <div class="ar-card-label">🔍 Investigasi</div>
       <div class="ar-card-num" style="color:#7B2FBE">${investigasi}</div>
       <div class="ar-card-sub">Paket RETUR setelah lapor</div>
-    </div>
-    <div class="ar-card">
-      <div class="ar-card-label">📊 Respons Rate CS</div>
-      <div class="ar-card-num ${rateColor}">${respRate}%</div>
-      <div class="ar-card-sub">CS bales / total bermasalah</div>
     </div>
   `;
 
