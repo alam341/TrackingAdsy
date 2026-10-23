@@ -47,7 +47,7 @@
   color: var(--text-1); border-radius: 8px; padding: 6px 10px;
   font-size: .82rem; font-family: inherit; cursor: pointer;
 }
-.rl-refresh { margin-left: auto; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-2); border-radius: 8px; padding: 6px 14px; font-size: .78rem; font-weight: 600; cursor: pointer; transition: all .15s; }
+.rl-refresh { border: 1px solid var(--border); background: var(--input-bg); color: var(--text-2); border-radius: 8px; padding: 6px 14px; font-size: .78rem; font-weight: 600; cursor: pointer; transition: all .15s; }
 .rl-refresh:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 /* ── Section cards ────────────────────────────────────────────────── */
@@ -145,7 +145,6 @@ function rlRenderPage() {
       <input type="date" id="rlTo" value="${_rlDateTo}" onchange="rlSetDate()">
       <button class="rl-preset ${_rlPreset==='bulan-ini' ?'active':''}" onclick="rlPreset('bulan-ini')">Bulan Ini</button>
       <button class="rl-preset ${_rlPreset==='bulan-lalu'?'active':''}" onclick="rlPreset('bulan-lalu')">Bulan Lalu</button>
-      <button class="rl-preset ${_rlPreset==='30h'       ?'active':''}" onclick="rlPreset('30h')">30 Hari</button>
       <select class="rl-select" id="rlCSSel"     onchange="rlSetCS(this.value)"><option value="">Semua CS</option></select>
       <select class="rl-select" id="rlEkspSel"   onchange="rlSetEksp(this.value)"><option value="">Semua Ekspedisi</option></select>
       <select class="rl-select" id="rlStatusSel" onchange="rlSetStatus(this.value)">
