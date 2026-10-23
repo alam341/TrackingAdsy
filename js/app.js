@@ -115,12 +115,34 @@ function updateSidebarProducts(produkNames) {
   const activeProduk = new URLSearchParams(location.search).get('produk') || '';
   container.innerHTML = produkNames.map(nama => {
     const isActive = activeProduk === nama;
-    return `<a href="tracking-akuisisi.html?produk=${encodeURIComponent(nama)}"
-        class="nav-item nav-item-sub ${isActive ? 'active' : ''}">
+    return `<a href="#" onclick="sidebarSetProduk('${escapeHtml(nama)}');return false;"
+        class="nav-item nav-item-sub ${isActive ? 'active' : ''}" data-produk="${escapeHtml(nama)}">
       <span class="nav-icon">${ICON_BOX}</span>
       <span>${escapeHtml(nama)}</span>
     </a>`;
   }).join('');
+}
+
+function sidebarSetProduk(nama) {
+  // Update URL tanpa reload
+  const url = nama
+    ? `tracking-akuisisi.html?produk=${encodeURIComponent(nama)}`
+    : 'tracking-akuisisi.html';
+  history.pushState({}, '', url);
+
+  // Update active state sidebar
+  document.querySelectorAll('#sidebar-products .nav-item-sub').forEach(el => {
+    el.classList.toggle('active', el.dataset.produk === nama);
+  });
+  const akuisisiAll = document.querySelector('.sidebar-nav > a.nav-item');
+  if (akuisisiAll) akuisisiAll.classList.toggle('active', !nama);
+
+  // Update header title
+  const h1 = document.querySelector('.topbar-title h1');
+  if (h1) h1.textContent = nama || 'Akuisisi';
+
+  // Filter data tanpa reload — panggil fungsi dari tracking-common.js
+  if (typeof trSetProdukFilter === 'function') trSetProdukFilter(nama);
 }
 
 function openSidebar()  { document.getElementById('sidebar')?.classList.add('open'); document.getElementById('sidebarOverlay')?.classList.add('open'); }
