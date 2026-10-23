@@ -158,11 +158,24 @@ module.exports = async function handler(req, res) {
     if (stage === 'BERMASALAH' && existing?.status_resi !== 'BERMASALAH') {
       insertRoomWork({
         resi:      cnote_no,
-        csNama:    existing?.cs_nama    || '',
+        csNama:    existing?.cs_nama     || '',
         kota:      existing?.kota_tujuan || '',
-        ekspedisi: courier              || '',
-        caseUndel: status_category      || '',
+        ekspedisi: courier               || '',
+        caseUndel: status_category       || '',
       }).catch(e => console.error('[room-work] Gagal insert:', e.message));
+    }
+
+    // 9. Auto investigasi kalau paket RETUR dan sudah lapor ekspedisi
+    if (stage === 'RETUR') {
+      sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}&lapor_ekspedisi=eq.true&investigasi=eq.false&select=id`)
+        .then(rows => {
+          if (!rows?.length) return;
+          return sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ investigasi: true, investigasi_at: now }),
+          });
+        })
+        .catch(e => console.error('[room-work] Auto investigasi gagal:', e.message));
     }
 
     res.status(200).json({ ok: true, resi: cnote_no, stage });
