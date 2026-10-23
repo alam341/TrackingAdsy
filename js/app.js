@@ -121,13 +121,15 @@ function renderLayout(activePage, user, products = []) {
 
 // Update sub-item produk di sidebar setelah order di-load
 // Dipanggil dari tracking-common.js setelah load() selesai
+let _cachedProdukOptions = []; // cache untuk dipakai sidebarSetProduk
 function updateSidebarProducts(produkNames) {
+  _cachedProdukOptions = produkNames;
   const container = document.getElementById('sidebar-products');
   if (!container) return;
   const activeProduk = new URLSearchParams(location.search).get('produk') || '';
   container.innerHTML = produkNames.map(nama => {
     const isActive = activeProduk === nama;
-    return `<a href="#" onclick="sidebarSetProduk('${escapeHtml(nama)}');return false;"
+    return `<a href="#" onclick="sidebarSetProduk(this.dataset.produk);return false;"
         class="nav-item nav-item-sub ${isActive ? 'active' : ''}" data-produk="${escapeHtml(nama)}">
       <span class="nav-icon">${ICON_BOX}</span>
       <span>${escapeHtml(nama)}</span>
@@ -160,11 +162,18 @@ function sidebarSetProduk(nama) {
     location.href = nama ? `tracking-akuisisi.html?produk=${encodeURIComponent(nama)}` : 'tracking-akuisisi.html';
     return;
   }
+  // Update URL dulu sebelum rebuild sidebar (updateSidebarProducts baca URL untuk active state)
   history.pushState({}, '', nama ? `tracking-akuisisi.html?produk=${encodeURIComponent(nama)}` : 'tracking-akuisisi.html');
 
-  document.querySelectorAll('#sidebar-products .nav-item-sub').forEach(el => {
-    el.classList.toggle('active', el.dataset.produk === nama);
-  });
+  // Rebuild sidebar dengan active state yang benar (baca URL baru)
+  if (_cachedProdukOptions.length) {
+    updateSidebarProducts(_cachedProdukOptions);
+  } else {
+    document.querySelectorAll('#sidebar-products .nav-item-sub').forEach(el => {
+      el.classList.toggle('active', el.dataset.produk === nama);
+    });
+  }
+
   const akuisisiAll = document.getElementById('sidebar-akuisisi-all');
   if (akuisisiAll) akuisisiAll.classList.toggle('active', !nama);
 

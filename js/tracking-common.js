@@ -357,7 +357,7 @@ function initTrackingPage(cfg) {
               </select>
               <select class="ctrl-select" id="trProdukFilter" onchange="trSetProdukFilter(this.value)">
                 <option value="">Semua Produk</option>
-                ${skuProdukOptions().map(p => `<option value="${escapeHtml(p)}" ${st.produkFilter===p?'selected':''}>${escapeHtml(p)}</option>`).join('')}
+                ${produkOptions().map(p => `<option value="${escapeHtml(p)}" ${st.produkFilter===p?'selected':''}>${escapeHtml(p)}</option>`).join('')}
               </select>` : ''}
             <div class="drp-wrap">
               <button class="drp-trigger" onclick="trDrpToggle()" id="trDrp-trigger">
@@ -592,7 +592,14 @@ function initTrackingPage(cfg) {
   window.trSetStoreFilter = (val) => { st.storeFilter = val; st.page = 1; applyFilter(); };
   window.trSetEkspedisiFilter = (val) => { st.ekspedisiFilter = val; st.page = 1; applyFilter(); };
   window.trSetCsFilter = (val) => { st.csFilter = val; st.page = 1; applyFilter(); };
-  window.trSetProdukFilter = (val) => { st.produkFilter = val; st.page = 1; applyFilter(); };
+  window.trSetProdukFilter = (val) => {
+    st.produkFilter = val;
+    st.page = 1;
+    // Sync dropdown supaya selalu sesuai (penting kalau filter di-set dari sidebar, bukan dropdown)
+    const sel = document.getElementById('trProdukFilter');
+    if (sel) sel.value = val;
+    applyFilter();
+  };
 
   function applyFilter() {
     const q = (document.getElementById('trSearch').value || '').toLowerCase();
