@@ -94,6 +94,23 @@
 
 .rl-loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 48px; color: var(--text-3); }
 .rl-pagination { display: flex; align-items: center; gap: 10px; justify-content: center; padding: 14px 0 4px; }
+
+/* ── Mobile ───────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .rl-filter { gap: 7px; padding: 10px 12px; }
+  .rl-eksp-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; padding: 12px; }
+  .rl-table td, .rl-table th { padding: 8px 10px; }
+  .rl-section-header { flex-direction: column; align-items: flex-start; gap: 4px; }
+}
+@media (max-width: 480px) {
+  .rl-summary { grid-template-columns: 1fr 1fr; }
+  .rl-card-num { font-size: 1.5rem; }
+  .rl-filter { flex-direction: column; align-items: stretch; }
+  .rl-filter label { display: none; }
+  .rl-preset, .rl-refresh, .rl-select,
+  .rl-filter input[type=date] { width: 100%; text-align: center; }
+  .rl-eksp-grid { grid-template-columns: 1fr 1fr; }
+}
 </style>
 </head>
 <body>

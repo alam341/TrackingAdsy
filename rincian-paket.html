@@ -28,7 +28,7 @@
 }
 .rp-preset:hover, .rp-preset.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 .rp-refresh {
-  margin-left: auto; border: 1px solid var(--border); background: var(--input-bg);
+  border: 1px solid var(--border); background: var(--input-bg);
   color: var(--text-2); border-radius: 8px; padding: 6px 14px;
   font-size: .78rem; font-weight: 600; cursor: pointer; transition: all .15s;
 }
@@ -43,7 +43,8 @@
   display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 16px;
 }
 @media (max-width: 1100px) { .rp-summary { grid-template-columns: repeat(4, 1fr); } }
-@media (max-width: 600px)  { .rp-summary { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 700px)  { .rp-summary { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 480px)  { .rp-summary { grid-template-columns: repeat(2, 1fr); } }
 .rp-card {
   background: var(--card); border: 1px solid var(--border);
   border-radius: 12px; padding: 12px 14px; cursor: pointer;
@@ -137,6 +138,20 @@
 /* ── Pagination ───────────────────────────────────────────────────── */
 .rp-pagination {
   display: flex; align-items: center; gap: 10px; justify-content: center; padding: 14px 0 4px;
+}
+
+/* ── Mobile ───────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .rp-filter-bar { gap: 7px; padding: 10px 12px; }
+  .rp-table-header { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .rp-table td, .rp-table th { padding: 8px 10px; }
+}
+@media (max-width: 480px) {
+  .rp-filter-bar { flex-direction: column; align-items: stretch; }
+  .rp-filter-bar label { display: none; }
+  .rp-preset, .rp-refresh, .rp-select,
+  .rp-filter-bar input[type=date] { width: 100%; text-align: center; }
+  .rp-card-num { font-size: 1.3rem; }
 }
 </style>
 </head>

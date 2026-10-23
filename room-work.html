@@ -108,6 +108,25 @@
 .rw-loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 40px; color: var(--text-3); }
 
 .rw-pagination { display: flex; align-items: center; gap: 10px; justify-content: center; padding: 14px 0 4px; }
+
+/* ── Mobile ───────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .rw-summary { grid-template-columns: repeat(3, 1fr); }
+  .rw-topbar  { gap: 8px; padding: 8px 12px; }
+  .rw-search  { min-width: 0; width: 100%; flex-basis: 100%; }
+  .rw-table-card { border-radius: 10px; }
+  .rw-table td, .rw-table th { padding: 8px 10px; }
+  /* wrap rw-table in scroll div via table-wrap class */
+  .rw-table-card .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+@media (max-width: 480px) {
+  .rw-summary { grid-template-columns: repeat(2, 1fr); }
+  .rw-card-num { font-size: 1.3rem; }
+  .rw-topbar { flex-direction: column; align-items: stretch; }
+  .rw-select, .rw-refresh { width: 100%; }
+  /* Hide less critical columns on very small screens */
+  .rw-col-hide { display: none; }
+}
 </style>
 </head>
 <body>
@@ -330,15 +349,15 @@ function rwRenderTable() {
     const btnInvst = '';
 
     return `<tr>
-      <td style="font-size:.7rem;color:var(--text-3);width:24px">${offset + i + 1}</td>
+      <td class="rw-col-hide" style="font-size:.7rem;color:var(--text-3);width:24px">${offset + i + 1}</td>
       <td style="font-weight:600;font-size:.78rem;white-space:nowrap">${escapeHtml(o.resi || '—')}</td>
       <td style="font-size:.78rem">${escapeHtml(o.nama_pembeli || '—')}</td>
       <td style="font-size:.78rem">${escapeHtml(o.cs_nama || '—')}</td>
-      <td style="font-size:.75rem;color:var(--text-3)">${escapeHtml(o.produk || '—')}</td>
+      <td class="rw-col-hide" style="font-size:.75rem;color:var(--text-3)">${escapeHtml(o.produk || '—')}</td>
       <td style="font-size:.78rem">${escapeHtml(o.ekspedisi || '—')}</td>
-      <td style="font-size:.78rem">${escapeHtml(o.kota_tujuan || '—')}</td>
+      <td class="rw-col-hide" style="font-size:.78rem">${escapeHtml(o.kota_tujuan || '—')}</td>
       <td style="font-size:.78rem;color:var(--danger);font-weight:600;white-space:nowrap">${fmtCaseUndel(o.case_undel)}</td>
-      <td style="font-size:.72rem;color:var(--text-3)">
+      <td class="rw-col-hide" style="font-size:.72rem;color:var(--text-3)">
         ${fmtTs(o.created_at)}
         <div style="font-size:.65rem;color:var(--text-3)">${fmtDurShort(o.created_at)} lalu</div>
       </td>
@@ -367,9 +386,9 @@ function rwRenderTable() {
       <div class="table-wrap">
         <table class="rw-table" style="width:100%">
           <thead><tr>
-            <th>#</th><th>Resi</th><th>Nama Pembeli</th><th>CS</th>
-            <th>Produk</th><th>Ekspedisi</th><th>Kota</th>
-            <th>Case Undel</th><th>Masuk RW</th><th>Follow Up</th>
+            <th class="rw-col-hide">#</th><th>Resi</th><th>Nama Pembeli</th><th>CS</th>
+            <th class="rw-col-hide">Produk</th><th>Ekspedisi</th><th class="rw-col-hide">Kota</th>
+            <th>Case Undel</th><th class="rw-col-hide">Masuk RW</th><th>Follow Up</th>
             <th>Status FU</th><th>Aksi</th>
           </tr></thead>
           <tbody>${tableRows}</tbody>

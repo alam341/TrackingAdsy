@@ -83,7 +83,8 @@
   display: grid; grid-template-columns: 140px 1fr 80px; align-items: center; gap: 10px;
   margin-bottom: 7px;
 }
-@media (max-width: 560px) { .wil-bar-row { grid-template-columns: 100px 1fr 60px; } }
+@media (max-width: 560px) { .wil-bar-row { grid-template-columns: 90px 1fr 52px; } }
+@media (max-width: 380px) { .wil-bar-row { grid-template-columns: 72px 1fr 44px; } }
 .wil-bar-city {
   font-size: .78rem; font-weight: 600; color: var(--text-1);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -158,6 +159,25 @@
 .wil-legend-circle {
   width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
   border: 2px solid rgba(255,255,255,0.6);
+}
+
+/* ── Mobile ───────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .wil-filter-bar { gap: 7px; padding: 10px 12px; }
+  .wil-refresh    { margin-left: 0; }
+  .wil-controls   { gap: 7px; }
+  .wil-search     { min-width: 0; }
+  .wil-count      { margin-left: 0; }
+  .wil-chart-card { padding: 14px; }
+  .wil-table td, .wil-table th { padding: 8px 10px; }
+}
+@media (max-width: 480px) {
+  .wil-filter-bar { flex-direction: column; align-items: stretch; }
+  .wil-filter-bar label, .wil-filter-bar input[type=date] + span { display: none; }
+  .wil-preset, .wil-refresh,
+  .wil-filter-bar input[type=date] { width: 100%; text-align: center; }
+  .wil-stat-num   { font-size: 1.4rem; }
+  .wil-chart-card { padding: 12px 10px; }
 }
 </style>
 </head>
