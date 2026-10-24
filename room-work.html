@@ -474,9 +474,9 @@ async function rwAksi(id, field) {
 // ── Event handlers ─────────────────────────────────────────────────────────────
 function rwSetTab(key)    { _rwTab = key; _rwPage = 1; rwRender(); }
 function rwSetSearch(val) { _rwSearch = val; _rwPage = 1; rwRenderTable(); }
-function rwSetCS(val)     { _rwCS = val;   _rwPage = 1; rwRenderTable(); }
-function rwSetEksp(val)   { _rwEksp = val; _rwPage = 1; rwRenderTable(); }
-function rwSetBulan(val)  { _rwBulan = val; _rwPage = 1; rwRenderTable(); }
+function rwSetCS(val)     { _rwCS = val;   _rwPage = 1; rwRender(); }
+function rwSetEksp(val)   { _rwEksp = val; _rwPage = 1; rwRender(); }
+function rwSetBulan(val)  { _rwBulan = val; _rwPage = 1; rwRender(); }
 function rwGoPage(p)      { _rwPage = p; rwRenderTable(); document.getElementById('rwTable')?.scrollIntoView({ behavior:'smooth', block:'start' }); }
 
 // ── Load ───────────────────────────────────────────────────────────────────────
