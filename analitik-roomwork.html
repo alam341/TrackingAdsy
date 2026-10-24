@@ -625,9 +625,17 @@ async function arShowResiDetail(resi) {
 
     bodyEl.innerHTML = `<div class="ar-timeline">
       ${records.map((r, i) => {
-        const waktu = [r.date, r.time].filter(Boolean).join(' ') || r.waktu || r.datetime || '';
-        const desc  = r.desc || r.description || r.keterangan || r.status || '';
-        const loc   = r.location || r.lokasi || r.city || '';
+        // actual_time = Unix timestamp (detik), convert ke WIB
+        let waktu = '';
+        if (r.actual_time) {
+          waktu = new Date(r.actual_time * 1000).toLocaleString('id-ID', {
+            timeZone: 'Asia/Jakarta',
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+          });
+        }
+        const desc = r.description || r.tracking_name || '';
+        const loc  = r.current_location?.location_name || '';
         return `<div class="ar-tl-item${i === 0 ? ' first' : ''}">
           <div class="ar-tl-time">${escapeHtml(waktu)}</div>
           <div>
