@@ -81,10 +81,23 @@ const _CS_INPUT_URL = 'https://lqpcnzdssvvcayqvdjxs.supabase.co';
 const _CS_INPUT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxxcGNuemRzc3Z2Y2F5cXZkanhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwMTgxMDIsImV4cCI6MjA5MDU5NDEwMn0.4M4okAfJWhBD6AbL71utafrFL-ZgbVxcz3ANLnG_jH4';
 
 function _extractEkspedisiCS(pembayaran, resi) {
-  if (resi && /^MGT\d/i.test(String(resi).trim())) return 'SAP';
+  if (resi) {
+    const r = String(resi).trim();
+    if (/^MGT\d/i.test(r))           return 'SAP';
+    if (/^SPXID/i.test(r))           return 'SPX';
+    if (/^26MNG\d+$/i.test(r))       return 'POS';
+    if (/^C1[A-Z0-9]{5,8}$/i.test(r)) return 'LION';
+    if (/^\d{16}$/.test(r))          return 'JNE';
+    if (/^(JO|JJ)\d{10}$/i.test(r))  return 'J&T';
+  }
   if (!pembayaran) return '';
   const p = pembayaran.toUpperCase();
-  const map = [['SPX','SPX'],['SICEPAT','SICEPAT'],['ANTERAJA','ANTERAJA'],['IDEXPRESS','IDEXPRESS'],['NINJA','NINJA'],['LION','LION'],['J&T','J&T'],['JNT','J&T'],['JNE','JNE'],['POS','POS'],['SAP','SAP']];
+  const map = [
+    ['SPX','SPX'],['SICEPAT','SICEPAT'],['ANTERAJA','ANTERAJA'],
+    ['IDEXPRESS','IDEXPRESS'],['ID EXPRESS','IDEXPRESS'],['IDE ','IDEXPRESS'],
+    ['NINJA','NINJA'],['LION','LION'],
+    ['J&T','J&T'],['JNT','J&T'],['JNE','JNE'],['POS','POS'],['SAP','SAP'],
+  ];
   for (const [k, v] of map) if (p.includes(k)) return v;
   return '';
 }
