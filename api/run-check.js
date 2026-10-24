@@ -35,7 +35,7 @@ module.exports = async function handler(req, res) {
       `akuisisi_orders` +
       `?select=id,ekspedisi,status_resi,status_resi_detail` +
       `&ekspedisi=in.(${ekspedisiFilter})` +
-      `&status_resi=not.in.(SAMPAI,RETUR)` +
+      `&status_resi=not.in.(SAMPAI,RETUR,MANUAL_CEK)` +
       `&id=not.like.IMP-*` +
       `&or=(order_date.gte.2026-09-01,order_date.is.null)` +
       `&order=status_resi_updated_at.asc.nullsfirst` +
