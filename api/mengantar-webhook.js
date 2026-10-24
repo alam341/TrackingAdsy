@@ -201,7 +201,20 @@ module.exports = async function handler(req, res) {
       }).catch(e => console.error('[room-work] Gagal insert:', e.message));
     }
 
-    // 9. Auto investigasi kalau paket RETUR dan sudah lapor ekspedisi
+    // 9. Auto resolve room_work kalau paket SAMPAI (berhasil terkirim setelah sempat bermasalah)
+    if (stage === 'SAMPAI') {
+      await sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}&cs_responded=eq.false&investigasi=eq.false&select=id`)
+        .then(rows => {
+          if (!rows?.length) return;
+          return sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ cs_responded: true, cs_responded_at: now }),
+          });
+        })
+        .catch(e => console.error('[room-work] Auto resolve gagal:', e.message));
+    }
+
+    // 10. Auto investigasi kalau paket RETUR dan sudah lapor ekspedisi
     if (stage === 'RETUR') {
       await sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}&lapor_ekspedisi=eq.true&investigasi=eq.false&select=id`)
         .then(rows => {
