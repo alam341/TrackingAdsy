@@ -128,7 +128,7 @@ module.exports = async function handler(req, res) {
     // 5. Cek apakah order sudah ada (untuk preserve bermasalah_since + ambil cs_nama)
     let existingRows = [];
     try {
-      existingRows = await sbFetch(`akuisisi_orders?select=id,status_resi,status_resi_detail,cs_nama,kota_tujuan&id=eq.${encodeURIComponent(cnote_no)}`);
+      existingRows = await sbFetch(`akuisisi_orders?select=id,status_resi,status_resi_detail&id=eq.${encodeURIComponent(cnote_no)}`);
     } catch (_) {}
     const existing = existingRows?.[0];
 
@@ -166,17 +166,16 @@ module.exports = async function handler(req, res) {
 
     console.log(`[webhook] ${cnote_no} → ${stage} (${status_category})`);
 
-    // 7b. Fetch detail tracking langsung dari API kurir — simpan records ke status_resi_detail
-    // Dilakukan async fire-and-forget setelah response dikirim (lihat bawah), tapi kita
-    // butuh hasilnya untuk insertRoomWork (masalah_kategori). Fetch sekarang, non-blocking.
-    const detailFetch = checkResiAuto({ id: cnote_no, ekspedisi: normCourier(courier), kota_tujuan: '' })
-      .then(async ({ stage: detailStage, detail }) => {
-        if (!detail) return;
+    // 7b. Fetch detail tracking dari API kurir — dapat masalah_kategori + records
+    let masalahKategori = '';
+    try {
+      const { detail } = await checkResiAuto({ id: cnote_no, ekspedisi: normCourier(courier), kota_tujuan: '' });
+      if (detail) {
+        masalahKategori = detail.masalah_kategori || '';
         const existingDetail = existing?.status_resi_detail || {};
         const mergedDetail = {
           ...existingDetail,
           ...detail,
-          // preserve bermasalah_since kalau sudah ada
           ...(existingDetail.bermasalah_since ? { bermasalah_since: existingDetail.bermasalah_since } : {}),
           webhook_status: status_category,
         };
@@ -187,8 +186,10 @@ module.exports = async function handler(req, res) {
             status_resi_updated_at: new Date().toISOString(),
           }),
         });
-      })
-      .catch(e => console.warn('[webhook] Fetch detail gagal (non-fatal):', e.message));
+      }
+    } catch (e) {
+      console.warn('[webhook] Fetch detail gagal (non-fatal):', e.message);
+    }
 
     // 8. Masukkan ke Room Work + kirim FU Info kalau baru jadi BERMASALAH
     if (stage === 'BERMASALAH' && existing?.status_resi !== 'BERMASALAH') {
@@ -196,8 +197,8 @@ module.exports = async function handler(req, res) {
         resi:      cnote_no,
         csNama:    existing?.cs_nama     || '',
         kota:      existing?.kota_tujuan || '',
-        ekspedisi: courier               || '',
-        caseUndel: status_category       || '',
+        ekspedisi: normCourier(courier)  || '',
+        caseUndel: masalahKategori       || status_category || '',
       }).catch(e => console.error('[room-work] Gagal insert:', e.message));
     }
 
@@ -227,7 +228,6 @@ module.exports = async function handler(req, res) {
         .catch(e => console.error('[room-work] Auto investigasi gagal:', e.message));
     }
 
-    await detailFetch;
     res.status(200).json({ ok: true, resi: cnote_no, stage });
 
   } catch (e) {
