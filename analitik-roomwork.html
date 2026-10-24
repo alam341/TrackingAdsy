@@ -100,6 +100,43 @@
 
 .ar-empty { padding: 28px 16px; text-align: center; color: var(--text-3); font-size: .8rem; }
 
+/* ── Card clickable ───────────────────────────────────────────────── */
+.ar-card.clickable { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.ar-card.clickable:hover { border-color: var(--primary); box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+
+/* ── Modal detail ─────────────────────────────────────────────────── */
+.ar-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 16px; overflow-y: auto;
+}
+.ar-modal {
+  background: var(--card); border-radius: 16px; width: 100%; max-width: 860px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18); overflow: hidden;
+}
+.ar-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+.ar-modal-title { font-size: 1rem; font-weight: 700; color: var(--text-1); }
+.ar-modal-close {
+  background: none; border: none; font-size: 1.3rem; cursor: pointer;
+  color: var(--text-3); line-height: 1; padding: 2px 6px; border-radius: 6px;
+}
+.ar-modal-close:hover { background: var(--input-bg); color: var(--text-1); }
+.ar-modal-body { max-height: 65vh; overflow-y: auto; }
+.ar-modal-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+.ar-modal-table th {
+  padding: 9px 12px; text-align: left; font-size: .67rem; font-weight: 600;
+  color: var(--text-3); border-bottom: 1px solid var(--border);
+  background: var(--input-bg); white-space: nowrap;
+  position: sticky; top: 0; z-index: 1;
+}
+.ar-modal-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text-1); vertical-align: middle; }
+.ar-modal-table tr:last-child td { border-bottom: none; }
+.ar-modal-table tr:hover td { background: var(--input-bg); }
+.ar-modal-count { padding: 10px 20px; font-size: .78rem; color: var(--text-3); border-top: 1px solid var(--border); }
+
 /* ── Mobile ───────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .ar-filter  { gap: 7px; padding: 10px 12px; }
@@ -122,14 +159,27 @@
   <div class="page" id="pageContent"></div>
 </div>
 
+<!-- Modal detail resi -->
+<div id="arModalOverlay" class="ar-modal-overlay" style="display:none" onclick="if(event.target===this)arCloseModal()">
+  <div class="ar-modal">
+    <div class="ar-modal-header">
+      <div class="ar-modal-title" id="arModalTitle"></div>
+      <button class="ar-modal-close" onclick="arCloseModal()">×</button>
+    </div>
+    <div class="ar-modal-body" id="arModalBody"></div>
+    <div class="ar-modal-count" id="arModalCount"></div>
+  </div>
+</div>
+
 <script src="js/db.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/app.js"></script>
 <script>
 
 // ── State ──────────────────────────────────────────────────────────────────────
-let _arData     = [];   // semua room_work
-let _arTrackMap = {};   // resi → status_resi dari akuisisi_orders
+let _arData          = [];   // semua room_work
+let _arTrackMap      = {};   // resi → status_resi dari akuisisi_orders
+let _arFilteredRows  = [];   // rows hasil filter (dipakai onclick modal)
 let _arFrom     = '';
 let _arTo       = '';
 let _arPreset   = 'bulan-ini';
@@ -205,6 +255,7 @@ function arFiltered() {
 // ── Render ─────────────────────────────────────────────────────────────────────
 function arRender() {
   const rows = arFiltered();
+  _arFilteredRows = rows;
 
   // ── Summary cards ────────────────────────────────────────────────────────────
   const total           = rows.length;
@@ -226,27 +277,27 @@ function arRender() {
   const summaryEl = document.getElementById('arSummary');
   if (summaryEl) summaryEl.innerHTML = `
     <div class="ar-section-label">📦 Status Paket</div>
-    <div class="ar-card">
+    <div class="ar-card clickable" onclick="arShowDetail('Total Bermasalah', _arFilteredRows)">
       <div class="ar-card-label">Total Bermasalah</div>
       <div class="ar-card-num">${total.toLocaleString('id-ID')}</div>
       <div class="ar-card-sub">Masuk Room Work</div>
     </div>
-    <div class="ar-card">
+    <div class="ar-card clickable" onclick="arShowDetail('⚠️ Masih Bermasalah', _arFilteredRows.filter(o => _arTrackMap[o.resi]==='BERMASALAH'))">
       <div class="ar-card-label">⚠️ Masih Bermasalah</div>
       <div class="ar-card-num c-danger">${stMasihBermasalah}</div>
       <div class="ar-card-sub">${total ? Math.round(stMasihBermasalah/total*100) : 0}% dari total</div>
     </div>
-    <div class="ar-card">
+    <div class="ar-card clickable" onclick="arShowDetail('✅ Sudah Sampai', _arFilteredRows.filter(o => _arTrackMap[o.resi]==='SAMPAI'))">
       <div class="ar-card-label">✅ Sudah Sampai</div>
       <div class="ar-card-num c-success">${stSampai}</div>
       <div class="ar-card-sub">${sampaiRate}% berhasil terkirim</div>
     </div>
-    <div class="ar-card">
+    <div class="ar-card clickable" onclick="arShowDetail('🚚 Dikirim Ulang', _arFilteredRows.filter(o => ['DIKIRIM','OTW','KOTA_TUJUAN'].includes(_arTrackMap[o.resi])))">
       <div class="ar-card-label">🚚 Dikirim Ulang</div>
       <div class="ar-card-num c-primary">${stDikirimUlang}</div>
       <div class="ar-card-sub">OTW / Dikirim / Kota Tujuan</div>
     </div>
-    <div class="ar-card">
+    <div class="ar-card clickable" onclick="arShowDetail('↩️ Retur', _arFilteredRows.filter(o => _arTrackMap[o.resi]==='RETUR'))">
       <div class="ar-card-label">↩️ Retur</div>
       <div class="ar-card-num c-danger">${stRetur}</div>
       <div class="ar-card-sub">${returRate}% dari total</div>
@@ -258,22 +309,22 @@ function arRender() {
       <div class="ar-card-num ${rateColor}">${respRate}%</div>
       <div class="ar-card-sub">CS bales / total</div>
     </div>
-    <div class="ar-card">
+    <div class="ar-card clickable" onclick="arShowDetail('✅ CS Bales', _arFilteredRows.filter(o => o.cs_responded))">
       <div class="ar-card-label">✅ CS Bales</div>
       <div class="ar-card-num c-success">${bales}</div>
       <div class="ar-card-sub">Sudah dikonfirmasi</div>
     </div>
-    <div class="ar-card">
+    <div class="ar-card clickable" onclick="arShowDetail('🚨 CS Tidak Bales', _arFilteredRows.filter(o => o.fu_count>=4 && !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi))">
       <div class="ar-card-label">🚨 CS Tidak Bales</div>
       <div class="ar-card-num c-danger">${tidakBales}</div>
       <div class="ar-card-sub">Max FU, perlu eskalasi</div>
     </div>
-    <div class="ar-card">
+    <div class="ar-card clickable" onclick="arShowDetail('📤 Lapor Ekspedisi', _arFilteredRows.filter(o => o.lapor_ekspedisi))">
       <div class="ar-card-label">📤 Lapor Ekspedisi</div>
       <div class="ar-card-num c-primary">${lapor}</div>
       <div class="ar-card-sub">Sudah dilaporkan ke kurir</div>
     </div>
-    <div class="ar-card">
+    <div class="ar-card clickable" onclick="arShowDetail('🔍 Investigasi', _arFilteredRows.filter(o => o.investigasi))">
       <div class="ar-card-label">🔍 Investigasi</div>
       <div class="ar-card-num" style="color:#7B2FBE">${investigasi}</div>
       <div class="ar-card-sub">RETUR setelah lapor</div>
@@ -381,6 +432,64 @@ async function arLoad() {
     arRender();
     console.error('[analitik-rw] Gagal load:', e.message);
   }
+}
+
+// ── Modal detail ───────────────────────────────────────────────────────────────
+function arCloseModal() {
+  const el = document.getElementById('arModalOverlay');
+  if (el) el.style.display = 'none';
+}
+
+function arShowDetail(label, filteredRows) {
+  const overlay = document.getElementById('arModalOverlay');
+  const titleEl = document.getElementById('arModalTitle');
+  const bodyEl  = document.getElementById('arModalBody');
+  const countEl = document.getElementById('arModalCount');
+  if (!overlay) return;
+
+  titleEl.textContent = label;
+  countEl.textContent = `${filteredRows.length} resi`;
+
+  const STATUS_LABEL = {
+    SAMPAI:       '✅ Sampai',
+    BERMASALAH:   '⚠️ Bermasalah',
+    RETUR:        '↩️ Retur',
+    DIKIRIM:      '📦 Dikirim',
+    OTW:          '🚚 OTW',
+    KOTA_TUJUAN:  '🏙️ Kota Tujuan',
+    BELUM_DICEK:  '🔘 Belum Dicek',
+    MANUAL:       '📋 Manual',
+    MANUAL_CEK:   '📋 Cek Manual',
+  };
+
+  if (!filteredRows.length) {
+    bodyEl.innerHTML = '<div class="ar-empty">Tidak ada data</div>';
+  } else {
+    bodyEl.innerHTML = `<table class="ar-modal-table">
+      <thead><tr>
+        <th>Resi</th><th>CS</th><th>Ekspedisi</th><th>Produk</th>
+        <th>Kota</th><th>Status Paket</th><th>Case</th>
+      </tr></thead>
+      <tbody>
+        ${filteredRows.map(o => {
+          const statusResi  = _arTrackMap[o.resi] || '—';
+          const statusLabel = STATUS_LABEL[statusResi] || statusResi;
+          const orderDate   = (o.order_date || o.created_at || '').slice(0, 10);
+          return `<tr>
+            <td style="font-family:monospace;font-size:.7rem;white-space:nowrap">${escapeHtml(o.resi || '')}</td>
+            <td>${escapeHtml(o.cs_nama || '—')}</td>
+            <td>${escapeHtml(o.ekspedisi || '—')}</td>
+            <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(o.produk || '')}">${escapeHtml(o.produk || '—')}</td>
+            <td style="white-space:nowrap">${escapeHtml(o.kota || '—')}</td>
+            <td style="white-space:nowrap">${statusLabel}</td>
+            <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(o.case_undel || '')}">${escapeHtml(o.case_undel || '—')}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+  }
+
+  overlay.style.display = 'flex';
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────
