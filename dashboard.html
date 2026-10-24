@@ -231,13 +231,13 @@ async function loadDashboard() {
 // ── Compute Metrics ───────────────────────────────────────────────────────────
 function computeMetrics(orders) {
   const withResi   = orders.filter(o => !o.id.startsWith('IMP-'));
-  const tracked    = withResi.filter(o => o.status_resi && o.status_resi !== 'BELUM_DICEK' && o.status_resi !== 'MANUAL');
+  const tracked    = withResi.filter(o => o.status_resi && o.status_resi !== 'BELUM_DICEK' && o.status_resi !== 'MANUAL' && o.status_resi !== 'MANUAL_CEK');
   const sampai     = tracked.filter(o => o.status_resi === 'SAMPAI');
   const retur      = tracked.filter(o => o.status_resi === 'RETUR');
   const bermasalah = tracked.filter(o => o.status_resi === 'BERMASALAH');
   const dikirim    = tracked.filter(o => o.status_resi === 'DIKIRIM');
   const otw        = tracked.filter(o => o.status_resi === 'OTW');
-  const manual     = withResi.filter(o => o.status_resi === 'MANUAL');
+  const manual     = withResi.filter(o => o.status_resi === 'MANUAL' || o.status_resi === 'MANUAL_CEK');
   const belum      = withResi.filter(o => !o.status_resi || o.status_resi === 'BELUM_DICEK');
 
   const settled = [...sampai, ...retur];
