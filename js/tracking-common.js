@@ -50,6 +50,7 @@ function trCardState(stage) {
 }
 function trEffectiveStage(o) {
   if (String(o.id).startsWith('IMP-')) return 'MENUNGGU_RESI'; // resi asli gak ketemu di file upload
+  if (o.status_resi === 'MANUAL_CEK') return 'MANUAL'; // MANUAL_CEK = cek manual, tampil sama
   if (!o.status_resi || !TR_STAGE_META[o.status_resi]) return 'BELUM_DICEK';
   return o.status_resi;
 }
