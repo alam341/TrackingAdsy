@@ -32,9 +32,10 @@
 
 /* ── Summary cards ────────────────────────────────────────────────── */
 .ar-summary {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 20px;
 }
-@media (max-width: 1000px) { .ar-summary { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1200px) { .ar-summary { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 700px)  { .ar-summary { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 480px)  { .ar-summary { grid-template-columns: 1fr; gap: 10px; } }
 .ar-card {
   background: var(--card); border: 1px solid var(--border);
@@ -121,6 +122,7 @@
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let _arData     = [];   // semua room_work
+let _arTrackMap = {};   // resi → status_resi dari akuisisi_orders
 let _arFrom     = '';
 let _arTo       = '';
 let _arPreset   = 'bulan-ini';
@@ -188,7 +190,7 @@ function arPreset(key) {
 function arFiltered() {
   if (!_arFrom && !_arTo) return _arData;
   return _arData.filter(o => {
-    const d = (o.created_at || '').slice(0, 10);
+    const d = (o.order_date || o.created_at || '').slice(0, 10);
     return (!_arFrom || d >= _arFrom) && (!_arTo || d <= _arTo);
   });
 }
@@ -203,10 +205,16 @@ function arRender() {
   const bales           = rows.filter(o => o.cs_responded).length;
   const lapor           = rows.filter(o => o.lapor_ekspedisi).length;
   const investigasi     = rows.filter(o => o.investigasi).length;
-  const berhasilTerkirim = rows.filter(o => o.cs_responded && !o.investigasi).length;
   const respRate        = total ? Math.round(bales / total * 100) : 0;
+  const rateColor       = respRate >= 70 ? 'c-success' : respRate >= 40 ? '' : 'c-danger';
 
-  const rateColor = respRate >= 70 ? 'c-success' : respRate >= 40 ? '' : 'c-danger';
+  // Status tracking sekarang dari akuisisi_orders
+  const stSampai        = rows.filter(o => _arTrackMap[o.resi] === 'SAMPAI').length;
+  const stRetur         = rows.filter(o => _arTrackMap[o.resi] === 'RETUR').length;
+  const stDikirimUlang  = rows.filter(o => ['DIKIRIM','OTW','KOTA_TUJUAN'].includes(_arTrackMap[o.resi])).length;
+  const stMasihBermasalah = rows.filter(o => _arTrackMap[o.resi] === 'BERMASALAH').length;
+  const sampaiRate      = total ? Math.round(stSampai / total * 100) : 0;
+  const returRate       = total ? Math.round(stRetur  / total * 100) : 0;
 
   const summaryEl = document.getElementById('arSummary');
   if (summaryEl) summaryEl.innerHTML = `
@@ -216,9 +224,24 @@ function arRender() {
       <div class="ar-card-sub">Semua paket yang masuk Room Work</div>
     </div>
     <div class="ar-card">
-      <div class="ar-card-label">✅ Berhasil Terkirim</div>
-      <div class="ar-card-num c-success">${berhasilTerkirim}</div>
-      <div class="ar-card-sub">CS bales & tidak retur</div>
+      <div class="ar-card-label">⚠️ Masih Bermasalah</div>
+      <div class="ar-card-num c-danger">${stMasihBermasalah}</div>
+      <div class="ar-card-sub">Belum ada update dari kurir</div>
+    </div>
+    <div class="ar-card">
+      <div class="ar-card-label">✅ Sudah Sampai</div>
+      <div class="ar-card-num c-success">${stSampai} <span style="font-size:1rem;font-weight:600">(${sampaiRate}%)</span></div>
+      <div class="ar-card-sub">Berhasil terkirim ke pembeli</div>
+    </div>
+    <div class="ar-card">
+      <div class="ar-card-label">🚚 Dikirim Ulang</div>
+      <div class="ar-card-num c-primary">${stDikirimUlang}</div>
+      <div class="ar-card-sub">OTW / Dikirim / Kota Tujuan</div>
+    </div>
+    <div class="ar-card">
+      <div class="ar-card-label">↩️ Retur</div>
+      <div class="ar-card-num c-danger">${stRetur} <span style="font-size:1rem;font-weight:600">(${returRate}%)</span></div>
+      <div class="ar-card-sub">Paket kembali ke pengirim</div>
     </div>
     <div class="ar-card">
       <div class="ar-card-label">📊 Respons Rate CS</div>
@@ -329,6 +352,19 @@ async function arLoad() {
     const r = await fetch('/api/room-work?tab=semua&limit=2000');
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     _arData = await r.json();
+
+    // Fetch status resi dari akuisisi_orders untuk semua resi di room_work
+    _arTrackMap = {};
+    const resiIds = [...new Set(_arData.map(o => o.resi).filter(Boolean))];
+    const CHUNK = 500;
+    for (let i = 0; i < resiIds.length; i += CHUNK) {
+      const chunk = resiIds.slice(i, i + CHUNK);
+      const { data } = await _sb.from('akuisisi_orders')
+        .select('id,status_resi')
+        .in('id', chunk);
+      (data || []).forEach(t => { _arTrackMap[t.id] = t.status_resi; });
+    }
+
     arRender();
   } catch (e) {
     _arData = [];
