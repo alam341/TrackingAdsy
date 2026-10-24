@@ -128,7 +128,7 @@ module.exports = async function handler(req, res) {
     // 5. Cek apakah order sudah ada (untuk preserve bermasalah_since + ambil cs_nama)
     let existingRows = [];
     try {
-      existingRows = await sbFetch(`akuisisi_orders?select=id,status_resi,status_resi_detail&id=eq.${encodeURIComponent(cnote_no)}`);
+      existingRows = await sbFetch(`akuisisi_orders?select=id,status_resi,status_resi_detail,order_date,cs_nama,kota_tujuan&id=eq.${encodeURIComponent(cnote_no)}`);
     } catch (_) {}
     const existing = existingRows?.[0];
 
@@ -219,6 +219,7 @@ module.exports = async function handler(req, res) {
         kota:      existing?.kota_tujuan || '',
         ekspedisi: normCourier(courier)  || '',
         caseUndel: masalahKategori       || status_category || '',
+        orderDate: existing?.order_date  || null,
       }).catch(e => console.error('[room-work] Gagal insert:', e.message));
     }
 
