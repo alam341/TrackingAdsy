@@ -146,7 +146,8 @@ let _rwTab    = 'aktif';
 let _rwSearch = '';
 let _rwCS     = '';
 let _rwEksp   = '';
-let _rwBulan  = '';
+const _now = new Date();
+let _rwBulan  = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
 let _rwPage   = 1;
 const RW_PAGE_SIZE = 20;
 
