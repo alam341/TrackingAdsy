@@ -32,7 +32,13 @@
 
 /* ── Summary cards ────────────────────────────────────────────────── */
 .ar-summary {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 20px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px;
+}
+.ar-section-label {
+  grid-column: 1 / -1;
+  font-size: .72rem; font-weight: 700; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: 4px 2px 0;
 }
 @media (max-width: 1200px) { .ar-summary { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 700px)  { .ar-summary { grid-template-columns: repeat(2, 1fr); } }
@@ -61,13 +67,14 @@
   font-size: .82rem; font-weight: 700; color: var(--text-1);
   display: flex; align-items: center; gap: 6px;
 }
-.ar-box-body { padding: 0; }
+.ar-box-body { padding: 0; max-height: 320px; overflow-y: auto; }
 
 .ar-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
 .ar-table th {
   padding: 8px 12px; text-align: left; font-size: .67rem; font-weight: 600;
   color: var(--text-3); border-bottom: 1px solid var(--border);
   background: var(--input-bg); white-space: nowrap;
+  position: sticky; top: 0; z-index: 1;
 }
 .ar-table td {
   padding: 8px 12px; border-bottom: 1px solid var(--border);
@@ -218,20 +225,21 @@ function arRender() {
 
   const summaryEl = document.getElementById('arSummary');
   if (summaryEl) summaryEl.innerHTML = `
-    <div class="ar-card" style="grid-column:span 2">
-      <div class="ar-card-label">📦 Total Bermasalah</div>
+    <div class="ar-section-label">📦 Status Paket</div>
+    <div class="ar-card">
+      <div class="ar-card-label">Total Bermasalah</div>
       <div class="ar-card-num">${total.toLocaleString('id-ID')}</div>
-      <div class="ar-card-sub">Semua paket yang masuk Room Work</div>
+      <div class="ar-card-sub">Masuk Room Work</div>
     </div>
     <div class="ar-card">
       <div class="ar-card-label">⚠️ Masih Bermasalah</div>
       <div class="ar-card-num c-danger">${stMasihBermasalah}</div>
-      <div class="ar-card-sub">Belum ada update dari kurir</div>
+      <div class="ar-card-sub">${total ? Math.round(stMasihBermasalah/total*100) : 0}% dari total</div>
     </div>
     <div class="ar-card">
       <div class="ar-card-label">✅ Sudah Sampai</div>
-      <div class="ar-card-num c-success">${stSampai} <span style="font-size:1rem;font-weight:600">(${sampaiRate}%)</span></div>
-      <div class="ar-card-sub">Berhasil terkirim ke pembeli</div>
+      <div class="ar-card-num c-success">${stSampai}</div>
+      <div class="ar-card-sub">${sampaiRate}% berhasil terkirim</div>
     </div>
     <div class="ar-card">
       <div class="ar-card-label">🚚 Dikirim Ulang</div>
@@ -240,23 +248,25 @@ function arRender() {
     </div>
     <div class="ar-card">
       <div class="ar-card-label">↩️ Retur</div>
-      <div class="ar-card-num c-danger">${stRetur} <span style="font-size:1rem;font-weight:600">(${returRate}%)</span></div>
-      <div class="ar-card-sub">Paket kembali ke pengirim</div>
+      <div class="ar-card-num c-danger">${stRetur}</div>
+      <div class="ar-card-sub">${returRate}% dari total</div>
+    </div>
+
+    <div class="ar-section-label">👤 Aktivitas CS</div>
+    <div class="ar-card">
+      <div class="ar-card-label">📊 Respons Rate</div>
+      <div class="ar-card-num ${rateColor}">${respRate}%</div>
+      <div class="ar-card-sub">CS bales / total</div>
     </div>
     <div class="ar-card">
-      <div class="ar-card-label">📊 Respons Rate CS</div>
-      <div class="ar-card-num ${rateColor}">${respRate}%</div>
-      <div class="ar-card-sub">CS bales / total bermasalah</div>
+      <div class="ar-card-label">✅ CS Bales</div>
+      <div class="ar-card-num c-success">${bales}</div>
+      <div class="ar-card-sub">Sudah dikonfirmasi</div>
     </div>
     <div class="ar-card">
       <div class="ar-card-label">🚨 CS Tidak Bales</div>
       <div class="ar-card-num c-danger">${tidakBales}</div>
       <div class="ar-card-sub">Max FU, perlu eskalasi</div>
-    </div>
-    <div class="ar-card">
-      <div class="ar-card-label">✅ CS Bales</div>
-      <div class="ar-card-num c-success">${bales}</div>
-      <div class="ar-card-sub">Sudah dikonfirmasi CS</div>
     </div>
     <div class="ar-card">
       <div class="ar-card-label">📤 Lapor Ekspedisi</div>
@@ -266,7 +276,7 @@ function arRender() {
     <div class="ar-card">
       <div class="ar-card-label">🔍 Investigasi</div>
       <div class="ar-card-num" style="color:#7B2FBE">${investigasi}</div>
-      <div class="ar-card-sub">Paket RETUR setelah lapor</div>
+      <div class="ar-card-sub">RETUR setelah lapor</div>
     </div>
   `;
 
