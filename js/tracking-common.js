@@ -388,7 +388,7 @@ function initTrackingPage(cfg) {
                 </div>
               </div>
             </div>
-            <button class="btn btn-primary btn-sm" id="trRefreshBtn" onclick="trRefreshAll()">🔄 Refresh Semua</button>
+            <button class="btn btn-primary btn-sm" id="trSyncBtn" onclick="trSyncAllResi()">📡 Sync Resi</button>
             <button class="btn btn-outline btn-sm" onclick="trDownloadExcel()">⬇️ Download Excel</button>
             ${typeof openUploadModal === 'function' ? `<button class="btn btn-outline btn-sm" onclick="openUploadModal('${cfg.domain}')">📥 Upload</button>` : ''}
           </div>
@@ -965,26 +965,42 @@ function initTrackingPage(cfg) {
     }
   };
 
-  window.trRefreshAll = async () => {
-    const btn = document.getElementById('trRefreshBtn');
-    const targets = st.orders.filter(o => o.ekspedisi && !['SAMPAI', 'RETUR', 'MANUAL'].includes(o.status_resi));
-    if (!targets.length) { showToast('Tidak ada resi yang bisa dicek', 'info'); return; }
+  // ── Sync Resi: server-side batch check semua resi aktif (bukan cuma yang di layar) ──
+  // Berguna saat webhook Mengantar miss / backlog lama belum terupdate.
+  // Tiap klik proses 100 resi; kalau `hasMore: true` otomatis lanjut run berikutnya.
+  window.trSyncAllResi = async () => {
+    const btn = document.getElementById('trSyncBtn');
     btn.disabled = true;
-    let done = 0;
-    btn.textContent = `Mengecek 0/${targets.length}...`;
-    const BATCH = 5;
-    for (let i = 0; i < targets.length; i += BATCH) {
-      const batch = targets.slice(i, i + BATCH);
-      await Promise.all(batch.map(async o => {
-        try { await checkOne(o); } catch {}
-        done++;
-        btn.textContent = `Mengecek ${done}/${targets.length}...`;
-      }));
+    let totalUpdated = 0, totalFailed = 0, round = 0;
+
+    const runOnce = async () => {
+      round++;
+      btn.textContent = `📡 Sync... (${totalUpdated} updated)`;
+      const r = await fetch('/api/run-check', { method: 'GET' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    };
+
+    try {
+      let result;
+      do {
+        result = await runOnce();
+        totalUpdated += result.updated || 0;
+        totalFailed  += result.failed  || 0;
+      } while (result.hasMore);
+
+      await load(true); // reload list tanpa spinner
+      applyFilter();
+      const msg = `✅ Sync selesai — ${totalUpdated} resi diupdate` +
+        (totalFailed ? `, ${totalFailed} gagal` : '') +
+        (result.roomWorkAdded ? `, ${result.roomWorkAdded} masuk Room Work` : '');
+      showToast(msg, totalFailed ? 'warning' : 'success');
+    } catch (e) {
+      showToast('❌ Sync gagal: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📡 Sync Resi';
     }
-    btn.disabled = false;
-    btn.textContent = '🔄 Refresh Semua';
-    applyFilter();
-    showToast('✅ Selesai cek semua resi', 'success');
   };
 
   window.trReload = load; // dipanggil upload-common.js abis upload sukses, biar list ke-refresh
