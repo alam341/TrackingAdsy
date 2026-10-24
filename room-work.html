@@ -146,6 +146,7 @@ let _rwTab    = 'aktif';
 let _rwSearch = '';
 let _rwCS     = '';
 let _rwEksp   = '';
+let _rwBulan  = '';
 let _rwPage   = 1;
 const RW_PAGE_SIZE = 20;
 
@@ -208,6 +209,7 @@ function rwRenderPage() {
         oninput="rwSetSearch(this.value)">
       <select class="rw-select" id="rwCSSel"   onchange="rwSetCS(this.value)"><option value="">Semua CS</option></select>
       <select class="rw-select" id="rwEkspSel" onchange="rwSetEksp(this.value)"><option value="">Semua Ekspedisi</option></select>
+      <select class="rw-select" id="rwBulanSel" onchange="rwSetBulan(this.value)"><option value="">Semua Bulan</option></select>
       <button class="rw-refresh" onclick="rwLoad()">🔄 Refresh</button>
     </div>
     <div class="rw-tabs" id="rwTabs"></div>
@@ -228,6 +230,20 @@ function rwRender() {
   const selEksp = document.getElementById('rwEkspSel');
   if (selEksp) selEksp.innerHTML = `<option value="">Semua Ekspedisi</option>` +
     ekspSet.map(e => `<option value="${escapeHtml(e)}" ${_rwEksp===e?'selected':''}>${escapeHtml(e)}</option>`).join('');
+
+  const bulanSet = [...new Set(_rwData.map(o => {
+    if (!o.created_at) return null;
+    const d = new Date(o.created_at);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }).filter(Boolean))].sort().reverse();
+  const bulanLabels = { '01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'Mei','06':'Jun','07':'Jul','08':'Agu','09':'Sep','10':'Okt','11':'Nov','12':'Des' };
+  const selBulan = document.getElementById('rwBulanSel');
+  if (selBulan) selBulan.innerHTML = `<option value="">Semua Bulan</option>` +
+    bulanSet.map(b => {
+      const [y, m] = b.split('-');
+      const label = `${bulanLabels[m] || m} ${y}`;
+      return `<option value="${b}" ${_rwBulan===b?'selected':''}>${label}</option>`;
+    }).join('');
 
   // Hitung per tab untuk summary & badge
   const counts = {
@@ -316,6 +332,12 @@ function rwGetTabRows() {
   }
   if (_rwCS)   rows = rows.filter(o => o.cs_nama   === _rwCS);
   if (_rwEksp) rows = rows.filter(o => o.ekspedisi === _rwEksp);
+  if (_rwBulan) rows = rows.filter(o => {
+    if (!o.created_at) return false;
+    const d = new Date(o.created_at);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    return key === _rwBulan;
+  });
 
   return rows;
 }
@@ -443,6 +465,7 @@ function rwSetTab(key)    { _rwTab = key; _rwPage = 1; rwRender(); }
 function rwSetSearch(val) { _rwSearch = val; _rwPage = 1; rwRenderTable(); }
 function rwSetCS(val)     { _rwCS = val;   _rwPage = 1; rwRenderTable(); }
 function rwSetEksp(val)   { _rwEksp = val; _rwPage = 1; rwRenderTable(); }
+function rwSetBulan(val)  { _rwBulan = val; _rwPage = 1; rwRenderTable(); }
 function rwGoPage(p)      { _rwPage = p; rwRenderTable(); document.getElementById('rwTable')?.scrollIntoView({ behavior:'smooth', block:'start' }); }
 
 // ── Load ───────────────────────────────────────────────────────────────────────
