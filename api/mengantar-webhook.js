@@ -204,12 +204,12 @@ module.exports = async function handler(req, res) {
 
     // 9. Auto resolve room_work kalau paket SAMPAI (berhasil terkirim setelah sempat bermasalah)
     if (stage === 'SAMPAI') {
-      await sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}&cs_responded=eq.false&investigasi=eq.false&select=id`)
+      await sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}&auto_resolved=eq.false&investigasi=eq.false&select=id`)
         .then(rows => {
           if (!rows?.length) return;
           return sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}`, {
             method: 'PATCH',
-            body: JSON.stringify({ cs_responded: true, cs_responded_at: now }),
+            body: JSON.stringify({ auto_resolved: true, auto_resolved_at: now }),
           });
         })
         .catch(e => console.error('[room-work] Auto resolve gagal:', e.message));
