@@ -33,7 +33,7 @@ module.exports = async function handler(req, res) {
   try {
     rows = await sbFetch(
       `akuisisi_orders` +
-      `?select=id,ekspedisi,status_resi,status_resi_detail` +
+      `?select=id,ekspedisi,status_resi,status_resi_detail,order_date` +
       `&ekspedisi=in.(${ekspedisiFilter})` +
       `&status_resi=not.in.(SAMPAI,RETUR,MANUAL_CEK)` +
       `&id=not.like.IMP-*` +
@@ -82,6 +82,7 @@ module.exports = async function handler(req, res) {
             kota:      '',
             ekspedisi: row.ekspedisi   || '',
             caseUndel: detailToSave?.masalah_kategori || '',
+            orderDate: row.order_date  || null,
           })
             .then(() => roomWorkAdded++)
             .catch(e => errors.push(`room_work/${row.id}: ${e.message}`));
