@@ -43,7 +43,7 @@ module.exports = async function handler(req, res) {
   try {
     const r = await fetch(
       `${CS_SUPABASE_URL}/rest/v1/all_orderan` +
-      `?select=resi,pembayaran` +
+      `?select=resi,pembayaran,tanggal` +
       `&sumber=eq.cs_input` +
       `&tanggal=gte.${cutoff}` +
       `&resi=not.is.null` +
@@ -67,7 +67,7 @@ module.exports = async function handler(req, res) {
   const eligible = csRows
     .map(r => {
       const id = String(r.resi || '').replace(/^'+/, '').trim();
-      return { id, ekspedisi: extractEkspedisi(r.pembayaran, id) };
+      return { id, ekspedisi: extractEkspedisi(r.pembayaran, id), order_date: r.tanggal || null };
     })
     .filter(r => r.id && !r.id.startsWith('IMP-') && r.ekspedisi);
 
@@ -75,44 +75,32 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ done: !hasMore, inserted: 0, skipped: csRows.length, offset: offset + ROWS_PER_RUN, hasMore });
   }
 
-  // 3. Cek mana yang belum ada di akuisisi_orders
-  const resiIds = eligible.map(r => r.id);
-  let existingSet = new Set();
-  try {
-    const existing = await sbFetch(
-      `akuisisi_orders?select=id&id=in.(${resiIds.map(encodeURIComponent).join(',')})`
-    );
-    existingSet = new Set((existing || []).map(r => r.id));
-  } catch (_) {}
-
-  const toInsert = eligible.filter(r => !existingSet.has(r.id));
-
-  if (!toInsert.length) {
-    return res.status(200).json({ done: !hasMore, inserted: 0, skipped: eligible.length, offset: offset + ROWS_PER_RUN, hasMore });
-  }
-
-  // 4. Bulk insert sebagai BELUM_DICEK — satu request, sangat cepat
-  const records = toInsert.map(r => ({
+  // 3. Upsert semua — insert baru + update order_date yang sudah ada (merge-duplicates)
+  // Kolom yang di-update hanya order_date — status_resi tidak di-overwrite
+  const records = eligible.map(r => ({
     id:               r.id,
     ekspedisi:        r.ekspedisi,
+    order_date:       r.order_date,
     status_resi:      'BELUM_DICEK',
     status_resi_step: 1,
   }));
 
+  let inserted = 0;
   try {
     await sbFetch('akuisisi_orders?on_conflict=id', {
       method:  'POST',
-      headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
       body:    JSON.stringify(records),
     });
+    inserted = eligible.length;
   } catch (e) {
-    return res.status(500).json({ error: 'Gagal insert: ' + e.message });
+    return res.status(500).json({ error: 'Gagal upsert: ' + e.message });
   }
 
   return res.status(200).json({
     done:     !hasMore,
-    inserted: toInsert.length,
-    skipped:  eligible.length - toInsert.length,
+    inserted,
+    skipped:  0,
     offset:   offset + ROWS_PER_RUN,
     hasMore,
   });
