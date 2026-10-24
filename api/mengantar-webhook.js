@@ -154,9 +154,9 @@ module.exports = async function handler(req, res) {
 
     console.log(`[webhook] ${cnote_no} → ${stage} (${status_category})`);
 
-    // 8. Masukkan ke Room Work + kirim FU 1 kalau baru jadi BERMASALAH
+    // 8. Masukkan ke Room Work + kirim FU Info kalau baru jadi BERMASALAH
     if (stage === 'BERMASALAH' && existing?.status_resi !== 'BERMASALAH') {
-      insertRoomWork({
+      await insertRoomWork({
         resi:      cnote_no,
         csNama:    existing?.cs_nama     || '',
         kota:      existing?.kota_tujuan || '',
@@ -167,7 +167,7 @@ module.exports = async function handler(req, res) {
 
     // 9. Auto investigasi kalau paket RETUR dan sudah lapor ekspedisi
     if (stage === 'RETUR') {
-      sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}&lapor_ekspedisi=eq.true&investigasi=eq.false&select=id`)
+      await sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}&lapor_ekspedisi=eq.true&investigasi=eq.false&select=id`)
         .then(rows => {
           if (!rows?.length) return;
           return sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}`, {
