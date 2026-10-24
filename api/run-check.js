@@ -105,6 +105,11 @@ module.exports = async function handler(req, res) {
       } catch (e) {
         failed++;
         errors.push(`${row.id}: ${e.message}`);
+        // Update timestamp supaya resi gagal tidak terus terpilih di run berikutnya
+        sbFetch(`akuisisi_orders?id=eq.${encodeURIComponent(row.id)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status_resi_updated_at: new Date().toISOString() }),
+        }).catch(() => {});
       }
     }));
   }
