@@ -5,6 +5,12 @@
     },
     "api/mengantar-webhook.js": {
       "maxDuration": 10
+    },
+    "api/cron-check-resi.js": {
+      "maxDuration": 60
+    },
+    "api/run-check.js": {
+      "maxDuration": 60
     }
   }
 }
