@@ -75,32 +75,53 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ done: !hasMore, inserted: 0, skipped: csRows.length, offset: offset + ROWS_PER_RUN, hasMore });
   }
 
-  // 3. Upsert semua — insert baru + update order_date yang sudah ada (merge-duplicates)
-  // Kolom yang di-update hanya order_date — status_resi tidak di-overwrite
-  const records = eligible.map(r => ({
-    id:               r.id,
-    ekspedisi:        r.ekspedisi,
-    order_date:       r.order_date,
-    status_resi:      'BELUM_DICEK',
-    status_resi_step: 1,
-  }));
-
-  let inserted = 0;
+  // 3. Cek mana yang belum ada di akuisisi_orders
+  const resiIds = eligible.map(r => r.id);
+  let existingMap = {};
   try {
-    await sbFetch('akuisisi_orders?on_conflict=id', {
-      method:  'POST',
-      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body:    JSON.stringify(records),
-    });
-    inserted = eligible.length;
-  } catch (e) {
-    return res.status(500).json({ error: 'Gagal upsert: ' + e.message });
+    const existing = await sbFetch(
+      `akuisisi_orders?select=id&id=in.(${resiIds.map(encodeURIComponent).join(',')})`
+    );
+    (existing || []).forEach(r => { existingMap[r.id] = true; });
+  } catch (_) {}
+
+  const toInsert  = eligible.filter(r => !existingMap[r.id]);
+  const toUpdate  = eligible.filter(r =>  existingMap[r.id]);
+
+  // 4a. Insert baru sebagai BELUM_DICEK
+  if (toInsert.length) {
+    const records = toInsert.map(r => ({
+      id:               r.id,
+      ekspedisi:        r.ekspedisi,
+      order_date:       r.order_date,
+      status_resi:      'BELUM_DICEK',
+      status_resi_step: 1,
+    }));
+    try {
+      await sbFetch('akuisisi_orders?on_conflict=id', {
+        method:  'POST',
+        headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+        body:    JSON.stringify(records),
+      });
+    } catch (e) {
+      return res.status(500).json({ error: 'Gagal insert: ' + e.message });
+    }
+  }
+
+  // 4b. Update order_date saja untuk baris yang sudah ada (tidak overwrite status_resi)
+  if (toUpdate.length) {
+    await Promise.all(toUpdate.map(r =>
+      sbFetch(`akuisisi_orders?id=eq.${encodeURIComponent(r.id)}`, {
+        method: 'PATCH',
+        body:   JSON.stringify({ order_date: r.order_date }),
+      }).catch(() => {})
+    ));
   }
 
   return res.status(200).json({
     done:     !hasMore,
-    inserted,
-    skipped:  0,
+    inserted: toInsert.length,
+    updated:  toUpdate.length,
     offset:   offset + ROWS_PER_RUN,
     hasMore,
   });
