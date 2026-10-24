@@ -37,7 +37,7 @@ module.exports = async function handler(req, res) {
       `&ekspedisi=in.(${ekspedisiFilter})` +
       `&status_resi=not.in.(SAMPAI,RETUR)` +
       `&id=not.like.IMP-*` +
-      `&order_date=gte.2026-09-01` +
+      `&or=(order_date.gte.2026-09-01,order_date.is.null)` +
       `&order=status_resi_updated_at.asc.nullsfirst` +
       `&limit=${ROWS_PER_RUN}`
     );
