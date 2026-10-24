@@ -571,7 +571,7 @@ async function arShowResiDetail(resi) {
   try {
     const { data, error } = await _sb
       .from('akuisisi_orders')
-      .select('id,ekspedisi,status_resi,status_resi_detail,status_resi_updated_at,kota_tujuan,cs_nama')
+      .select('id,ekspedisi,status_resi,status_resi_detail,status_resi_updated_at,kota_tujuan')
       .eq('id', resi)
       .single();
 
