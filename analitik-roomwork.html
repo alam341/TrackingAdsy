@@ -576,7 +576,8 @@ async function arShowResiDetail(resi) {
       .single();
 
     if (error || !data) {
-      bodyEl.innerHTML = '<div class="ar-resi-loading">Data tidak ditemukan di akuisisi_orders.</div>';
+      console.error('[arShowResiDetail] error:', error, '| resi:', resi);
+      bodyEl.innerHTML = `<div class="ar-resi-loading">Data tidak ditemukan.<br><small style="opacity:.6">${error?.code || ''} ${error?.message || ''}</small></div>`;
       return;
     }
 
