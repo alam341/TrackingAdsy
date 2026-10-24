@@ -4,7 +4,7 @@
       "maxDuration": 30
     },
     "api/mengantar-webhook.js": {
-      "maxDuration": 10
+      "maxDuration": 30
     },
     "api/run-check.js": {
       "maxDuration": 60
