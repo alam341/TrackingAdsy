@@ -290,9 +290,21 @@ function arRender() {
     </table>`;
   }
 
-  const ekspedisiData = buildBreakdown(rows, o => o.ekspedisi);
+  // Normalisasi ekspedisi ke uppercase agar LION + lion tidak jadi dua baris
+  function normEksp(e) {
+    return (e || '').toUpperCase().trim() || '—';
+  }
+
+  // Strip prefiks kuantitas: "4 BOX NEW PRIMAGOLD" → "NEW PRIMAGOLD"
+  // "1 BOTOL HERBAPIL" → "HERBAPIL"
+  function normProduk(raw) {
+    if (!raw) return '—';
+    return raw.replace(/^\d+\s*(BOX|BOTOL|PCS|PACK|SACHET|TUBE|BUAH|LEMBAR|KALENG|STRIP)\s*/i, '').trim() || raw;
+  }
+
+  const ekspedisiData = buildBreakdown(rows, o => normEksp(o.ekspedisi));
   const csData        = buildBreakdown(rows, o => o.cs_nama);
-  const produkData    = buildBreakdown(rows, o => o.produk);
+  const produkData    = buildBreakdown(rows, o => normProduk(o.produk));
 
   const gridEl = document.getElementById('arGrid');
   if (gridEl) gridEl.innerHTML = `
