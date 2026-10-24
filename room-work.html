@@ -233,9 +233,9 @@ function rwRender() {
     ekspSet.map(e => `<option value="${escapeHtml(e)}" ${_rwEksp===e?'selected':''}>${escapeHtml(e)}</option>`).join('');
 
   const bulanSet = [...new Set(_rwData.map(o => {
-    if (!o.created_at) return null;
-    const d = new Date(o.created_at);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const src = o.order_date || o.created_at;
+    if (!src) return null;
+    return String(src).slice(0, 7);
   }).filter(Boolean))].sort().reverse();
   const bulanLabels = { '01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'Mei','06':'Jun','07':'Jul','08':'Agu','09':'Sep','10':'Okt','11':'Nov','12':'Des' };
   const selBulan = document.getElementById('rwBulanSel');
@@ -334,10 +334,9 @@ function rwGetTabRows() {
   if (_rwCS)   rows = rows.filter(o => o.cs_nama   === _rwCS);
   if (_rwEksp) rows = rows.filter(o => o.ekspedisi === _rwEksp);
   if (_rwBulan) rows = rows.filter(o => {
-    if (!o.created_at) return false;
-    const d = new Date(o.created_at);
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    return key === _rwBulan;
+    const src = o.order_date || o.created_at;
+    if (!src) return false;
+    return String(src).slice(0, 7) === _rwBulan;
   });
 
   return rows;
