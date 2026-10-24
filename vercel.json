@@ -8,6 +8,9 @@
     },
     "api/run-check.js": {
       "maxDuration": 60
+    },
+    "api/backfill-roomwork.js": {
+      "maxDuration": 60
     }
   }
 }
