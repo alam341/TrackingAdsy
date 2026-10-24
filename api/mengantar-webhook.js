@@ -157,6 +157,26 @@ module.exports = async function handler(req, res) {
     }
 
     // 7. Upsert ke akuisisi_orders
+    // Kalau paket sudah BERMASALAH, jangan downgrade ke OTW/DIKIRIM/KOTA_TUJUAN
+    // (kurir sedang retry — biarkan tetap BERMASALAH sampai benar-benar SAMPAI atau RETUR)
+    const wasBemasalah = existing?.status_resi === 'BERMASALAH';
+    const isRetryStage = ['OTW', 'DIKIRIM', 'KOTA_TUJUAN'].includes(stage);
+    if (wasBemasalah && isRetryStage) {
+      // Kurir retry kirim — tetap BERMASALAH tapi increment counter percobaan ulang
+      const existingDetail = existing?.status_resi_detail || {};
+      const attempts = (existingDetail.redeliver_attempts || 0) + 1;
+      await sbFetch(`akuisisi_orders?id=eq.${encodeURIComponent(cnote_no)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status_resi_detail: { ...existingDetail, redeliver_attempts: attempts, last_retry_stage: stage },
+          status_resi_updated_at: now,
+        }),
+      }).catch(e => console.warn('[webhook] Update redeliver_attempts gagal:', e.message));
+      console.log(`[webhook] ${cnote_no} retry ke-${attempts} (${stage}) — tetap BERMASALAH`);
+      res.status(200).json({ ok: true, resi: cnote_no, stage, retry: attempts });
+      return;
+    }
+
     // Pakai upsert — kalau resi belum ada di tabel (baru pertama kali dapat webhook) → insert
     await sbFetch('akuisisi_orders?on_conflict=id', {
       method: 'POST',
