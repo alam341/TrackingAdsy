@@ -775,7 +775,7 @@ function initTrackingPage(cfg) {
               ${o.cs_nama ? `<span class="badge badge-primary">👤 ${escapeHtml(o.cs_nama)}</span>` : ''}
               ${followupBadge}
               ${stage === 'BERMASALAH' && o.masalah_kategori ? `<span class="badge badge-danger">${TR_BERMASALAH_KATEGORI_META[o.masalah_kategori]?.icon || '❓'} ${TR_BERMASALAH_KATEGORI_META[o.masalah_kategori]?.label || o.masalah_kategori}</span>` : ''}
-              ${stage === 'BERMASALAH' && o.redeliver_attempts > 0 ? `<span class="badge badge-warning">🔄 Percobaan pengiriman ulang ke-${o.redeliver_attempts}</span>` : ''}
+              ${o.redeliver_attempts > 0 ? `<span class="badge badge-warning">🔄 Percobaan pengiriman ulang ke-${o.redeliver_attempts}</span>` : ''}
             </div>
             <div class="tr-produk" title="${escapeHtml(o.produk || '-')}">${escapeHtml(o.produk || '-')} × ${o.qty || 1}</div>
           </div>
