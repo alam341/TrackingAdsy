@@ -37,6 +37,17 @@ const STAGE_STEP = {
   BERMASALAH: 2, RETUR: 2,
 };
 
+// Normalisasi nama kurir dari Mengantar ke format internal (uppercase konsisten)
+const COURIER_NORM = {
+  jne: 'JNE', jt: 'J&T', 'j&t': 'J&T', jnt: 'J&T',
+  sicepat: 'SICEPAT', anteraja: 'ANTERAJA', ninja: 'NINJA',
+  idexpress: 'IDEXPRESS', lion: 'LION', pos: 'POS', spx: 'SPX', sap: 'SAP',
+};
+function normCourier(c) {
+  if (!c) return null;
+  return COURIER_NORM[String(c).toLowerCase()] || String(c).toUpperCase();
+}
+
 // ── Baca raw body dari stream ─────────────────────────────────────────────────
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
@@ -123,7 +134,7 @@ module.exports = async function handler(req, res) {
     // 6. Bangun patch
     const patch = {
       id: cnote_no,
-      ekspedisi: courier || null,
+      ekspedisi: normCourier(courier),
       status_resi: stage,
       status_resi_step: STAGE_STEP[stage] || 1,
       status_resi_updated_at: now,
