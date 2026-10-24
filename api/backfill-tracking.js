@@ -1,15 +1,12 @@
-// Backfill tracking: cek resi CS Input yang belum ada di akuisisi_orders
+// Backfill tracking: bulk insert resi CS Input ke akuisisi_orders sebagai BELUM_DICEK
 // GET /api/backfill-tracking?offset=0
-// Proses 100 per request — ulangi sampai hasMore: false
+// Tidak call API kurir — cuma DB insert, sangat cepat.
+// Setelah selesai, jalankan Sync Resi untuk update status aktual.
 
-const { sbFetch }                            = require('../lib/supabase-rest');
-const { checkResiAuto, AUTO_EKSPEDISI_LIST } = require('../lib/tracking-router');
-const { STAGE_STEP }                         = require('../lib/stage-engine');
-
+const { sbFetch }     = require('../lib/supabase-rest');
 const CS_SUPABASE_URL = 'https://lqpcnzdssvvcayqvdjxs.supabase.co';
-const ROWS_PER_RUN    = 100;
+const ROWS_PER_RUN    = 500;
 const DAYS_BACK       = 60;
-const BATCH           = 5;
 
 function cutoffDate() {
   const d = new Date();
@@ -46,11 +43,10 @@ module.exports = async function handler(req, res) {
   try {
     const r = await fetch(
       `${CS_SUPABASE_URL}/rest/v1/all_orderan` +
-      `?select=resi,pembayaran,kabupaten` +
+      `?select=resi,pembayaran` +
       `&sumber=eq.cs_input` +
       `&tanggal=gte.${cutoff}` +
       `&resi=not.is.null` +
-      `&resi=neq.` +
       `&order=id.asc` +
       `&limit=${ROWS_PER_RUN}&offset=${offset}`,
       { headers: { apikey: key, Authorization: `Bearer ${key}` } }
@@ -64,26 +60,22 @@ module.exports = async function handler(req, res) {
   const hasMore = csRows.length === ROWS_PER_RUN;
 
   if (!csRows.length) {
-    return res.status(200).json({ done: true, checked: 0, updated: 0, failed: 0, offset, hasMore: false });
+    return res.status(200).json({ done: true, inserted: 0, skipped: 0, offset, hasMore: false });
   }
 
-  // 2. Filter ke resi valid + ekspedisi yang didukung
+  // 2. Map ke rows valid dengan ekspedisi dikenal
   const eligible = csRows
     .map(r => {
       const id = String(r.resi || '').replace(/^'+/, '').trim();
-      return {
-        id,
-        ekspedisi: extractEkspedisi(r.pembayaran, id),
-        kota_tujuan: r.kabupaten || '',
-      };
+      return { id, ekspedisi: extractEkspedisi(r.pembayaran, id) };
     })
-    .filter(r => r.id && !r.id.startsWith('IMP-') && AUTO_EKSPEDISI_LIST.includes(r.ekspedisi));
+    .filter(r => r.id && !r.id.startsWith('IMP-') && r.ekspedisi);
 
   if (!eligible.length) {
-    return res.status(200).json({ done: !hasMore, checked: 0, updated: 0, failed: 0, offset: offset + ROWS_PER_RUN, hasMore });
+    return res.status(200).json({ done: !hasMore, inserted: 0, skipped: csRows.length, offset: offset + ROWS_PER_RUN, hasMore });
   }
 
-  // 3. Cari mana yang belum ada di akuisisi_orders sama sekali
+  // 3. Cek mana yang belum ada di akuisisi_orders
   const resiIds = eligible.map(r => r.id);
   let existingSet = new Set();
   try {
@@ -93,54 +85,35 @@ module.exports = async function handler(req, res) {
     existingSet = new Set((existing || []).map(r => r.id));
   } catch (_) {}
 
-  const toCheck = eligible.filter(r => !existingSet.has(r.id));
+  const toInsert = eligible.filter(r => !existingSet.has(r.id));
 
-  if (!toCheck.length) {
-    return res.status(200).json({ done: !hasMore, checked: 0, updated: 0, failed: 0, offset: offset + ROWS_PER_RUN, hasMore });
+  if (!toInsert.length) {
+    return res.status(200).json({ done: !hasMore, inserted: 0, skipped: eligible.length, offset: offset + ROWS_PER_RUN, hasMore });
   }
 
-  // 4. Check kurir API + upsert ke akuisisi_orders
-  let checked = 0, updated = 0, failed = 0;
-  const errors = [];
-  const now = new Date().toISOString();
+  // 4. Bulk insert sebagai BELUM_DICEK — satu request, sangat cepat
+  const records = toInsert.map(r => ({
+    id:               r.id,
+    ekspedisi:        r.ekspedisi,
+    status_resi:      'BELUM_DICEK',
+    status_resi_step: 1,
+  }));
 
-  for (let i = 0; i < toCheck.length; i += BATCH) {
-    const batch = toCheck.slice(i, i + BATCH);
-    await Promise.all(batch.map(async row => {
-      checked++;
-      try {
-        const { stage, detail } = await checkResiAuto(row);
-        let detailToSave = detail;
-        if (stage === 'BERMASALAH') {
-          detailToSave = { ...(detail || {}), bermasalah_since: now };
-        }
-        await sbFetch('akuisisi_orders?on_conflict=id', {
-          method:  'POST',
-          headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-          body: JSON.stringify({
-            id:                     row.id,
-            ekspedisi:              row.ekspedisi,
-            status_resi:            stage,
-            status_resi_step:       STAGE_STEP[stage] || 1,
-            status_resi_updated_at: now,
-            status_resi_detail:     detailToSave,
-          }),
-        });
-        updated++;
-      } catch (e) {
-        failed++;
-        errors.push(`${row.id}: ${e.message}`);
-      }
-    }));
+  try {
+    await sbFetch('akuisisi_orders?on_conflict=id', {
+      method:  'POST',
+      headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+      body:    JSON.stringify(records),
+    });
+  } catch (e) {
+    return res.status(500).json({ error: 'Gagal insert: ' + e.message });
   }
 
   return res.status(200).json({
-    done:    !hasMore,
-    checked,
-    updated,
-    failed,
-    offset:  offset + ROWS_PER_RUN,
+    done:     !hasMore,
+    inserted: toInsert.length,
+    skipped:  eligible.length - toInsert.length,
+    offset:   offset + ROWS_PER_RUN,
     hasMore,
-    errors:  errors.slice(0, 5),
   });
 };
