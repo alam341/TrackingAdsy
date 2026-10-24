@@ -10,6 +10,7 @@
 const crypto = require('crypto');
 const { sbFetch } = require('../lib/supabase-rest');
 const { insertRoomWork } = require('../lib/room-work-helper');
+const { checkResiAuto } = require('../lib/tracking-router');
 
 // Matikan body parser bawaan Vercel — kita butuh raw body untuk verifikasi HMAC
 // (parse ulang JSON → bytes beda → signature tidak cocok)
@@ -165,6 +166,30 @@ module.exports = async function handler(req, res) {
 
     console.log(`[webhook] ${cnote_no} → ${stage} (${status_category})`);
 
+    // 7b. Fetch detail tracking langsung dari API kurir — simpan records ke status_resi_detail
+    // Dilakukan async fire-and-forget setelah response dikirim (lihat bawah), tapi kita
+    // butuh hasilnya untuk insertRoomWork (masalah_kategori). Fetch sekarang, non-blocking.
+    const detailFetch = checkResiAuto({ id: cnote_no, ekspedisi: normCourier(courier), kota_tujuan: '' })
+      .then(async ({ stage: detailStage, detail }) => {
+        if (!detail) return;
+        const existingDetail = existing?.status_resi_detail || {};
+        const mergedDetail = {
+          ...existingDetail,
+          ...detail,
+          // preserve bermasalah_since kalau sudah ada
+          ...(existingDetail.bermasalah_since ? { bermasalah_since: existingDetail.bermasalah_since } : {}),
+          webhook_status: status_category,
+        };
+        await sbFetch(`akuisisi_orders?id=eq.${encodeURIComponent(cnote_no)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            status_resi_detail: mergedDetail,
+            status_resi_updated_at: new Date().toISOString(),
+          }),
+        });
+      })
+      .catch(e => console.warn('[webhook] Fetch detail gagal (non-fatal):', e.message));
+
     // 8. Masukkan ke Room Work + kirim FU Info kalau baru jadi BERMASALAH
     if (stage === 'BERMASALAH' && existing?.status_resi !== 'BERMASALAH') {
       await insertRoomWork({
@@ -189,6 +214,7 @@ module.exports = async function handler(req, res) {
         .catch(e => console.error('[room-work] Auto investigasi gagal:', e.message));
     }
 
+    await detailFetch;
     res.status(200).json({ ok: true, resi: cnote_no, stage });
 
   } catch (e) {
