@@ -531,7 +531,7 @@ function arShowDetail(label, filteredRows) {
         ${filteredRows.map(o => {
           const statusResi  = _arTrackMap[o.resi] || '—';
           const statusLabel = STATUS_LABEL[statusResi] || statusResi;
-          return `<tr class="clickable-row" onclick="arShowResiDetail(${JSON.stringify(o.resi||'')})">
+          return `<tr class="clickable-row" data-resi="${escapeHtml(o.resi||'')}" onclick="arShowResiDetail(this.dataset.resi)">
             <td style="font-family:monospace;font-size:.7rem;white-space:nowrap;color:var(--primary)">${escapeHtml(o.resi || '')}</td>
             <td>${escapeHtml(o.cs_nama || '—')}</td>
             <td>${escapeHtml(o.ekspedisi || '—')}</td>
