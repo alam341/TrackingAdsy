@@ -11,6 +11,9 @@
     },
     "api/backfill-roomwork.js": {
       "maxDuration": 60
+    },
+    "api/backfill-tracking.js": {
+      "maxDuration": 60
     }
   }
 }
