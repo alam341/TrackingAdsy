@@ -33,11 +33,10 @@ module.exports = async function handler(req, res) {
   try {
     rows = await sbFetch(
       `akuisisi_orders` +
-      `?select=id,ekspedisi,kota_tujuan,status_resi,status_resi_detail,cs_nama,order_date` +
+      `?select=id,ekspedisi,status_resi,status_resi_detail` +
       `&ekspedisi=in.(${ekspedisiFilter})` +
       `&status_resi=not.in.(SAMPAI,RETUR)` +
       `&id=not.like.IMP-*` +
-      `&order_date=gte.${cutoff}` +
       `&order=status_resi_updated_at.asc.nullsfirst` +
       `&limit=${ROWS_PER_RUN}`
     );
@@ -78,8 +77,8 @@ module.exports = async function handler(req, res) {
         if (stage === 'BERMASALAH' && row.status_resi !== 'BERMASALAH') {
           insertRoomWork({
             resi:      row.id,
-            csNama:    row.cs_nama     || '',
-            kota:      row.kota_tujuan || '',
+            csNama:    '',
+            kota:      '',
             ekspedisi: row.ekspedisi   || '',
             caseUndel: detailToSave?.masalah_kategori || '',
           })
