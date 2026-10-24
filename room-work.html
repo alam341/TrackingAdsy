@@ -246,19 +246,30 @@ function rwRender() {
       return `<option value="${b}" ${_rwBulan===b?'selected':''}>${label}</option>`;
     }).join('');
 
+  // Apply filter bulan/CS/ekspedisi ke base data untuk counts
+  const _base = _rwData.filter(o => {
+    if (_rwBulan) {
+      const src = o.order_date || o.created_at;
+      if (!src || String(src).slice(0, 7) !== _rwBulan) return false;
+    }
+    if (_rwCS   && o.cs_nama   !== _rwCS)   return false;
+    if (_rwEksp && o.ekspedisi !== _rwEksp) return false;
+    return true;
+  });
+
   // Hitung per tab untuk summary & badge
   const counts = {
-    aktif:              _rwData.filter(o => !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi && !o.auto_resolved).length,
-    tidak_bales:        _rwData.filter(o => o.fu_count >= 4 && !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi && !o.auto_resolved).length,
-    bales:              _rwData.filter(o => o.cs_responded).length,
-    lapor:              _rwData.filter(o => o.lapor_ekspedisi).length,
-    investigasi:        _rwData.filter(o => o.investigasi).length,
-    terkirim_otomatis:  _rwData.filter(o => o.auto_resolved).length,
-    semua:              _rwData.length,
+    aktif:              _base.filter(o => !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi && !o.auto_resolved).length,
+    tidak_bales:        _base.filter(o => o.fu_count >= 4 && !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi && !o.auto_resolved).length,
+    bales:              _base.filter(o => o.cs_responded).length,
+    lapor:              _base.filter(o => o.lapor_ekspedisi).length,
+    investigasi:        _base.filter(o => o.investigasi).length,
+    terkirim_otomatis:  _base.filter(o => o.auto_resolved).length,
+    semua:              _base.length,
   };
 
   // Subset aktif: fu breakdown
-  const aktifRows = _rwData.filter(o => !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi && !o.auto_resolved);
+  const aktifRows = _base.filter(o => !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi && !o.auto_resolved);
   const fuInfoCount = aktifRows.filter(o => o.fu_count === 1).length;
   const fu1Count    = aktifRows.filter(o => o.fu_count === 2).length;
 
