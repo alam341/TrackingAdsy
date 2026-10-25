@@ -139,19 +139,21 @@ async function dbGetAkuisisiOrders(dateFrom, dateTo, preloadedSkuMap = null) {
     ].join('&');
     const csHeaders = { apikey: _CS_INPUT_KEY, Authorization: 'Bearer ' + _CS_INPUT_KEY };
 
-    const headRes = await fetch(_CS_INPUT_URL + '/rest/v1/all_orderan?' + baseParams + '&limit=1', {
-      headers: { ...csHeaders, Prefer: 'count=exact' },
-    });
-    const totalCount = parseInt(headRes.headers.get('content-range')?.split('/')?.[1] || '1000');
-    const totalPages = Math.ceil(totalCount / PAGE);
-
-    const pageFetches = Array.from({ length: totalPages }, (_, i) =>
-      fetch(_CS_INPUT_URL + '/rest/v1/all_orderan?' + baseParams + `&limit=${PAGE}&offset=${i * PAGE}`, {
-        headers: csHeaders,
-      }).then(r => r.ok ? r.json() : Promise.reject(new Error('CS Input query gagal: ' + r.status)))
-    );
-    const pages = await Promise.all(pageFetches);
-    csOrders = pages.flat();
+    // Fetch semua halaman sampai halaman kosong — lebih robust dari approach "total count dulu"
+    // yang bergantung pada header content-range (bisa tidak terbaca di mobile browser tertentu).
+    csOrders = [];
+    let offset = 0;
+    while (true) {
+      const r = await fetch(
+        _CS_INPUT_URL + '/rest/v1/all_orderan?' + baseParams + `&limit=${PAGE}&offset=${offset}`,
+        { headers: csHeaders }
+      );
+      if (!r.ok) throw new Error('CS Input query gagal: ' + r.status);
+      const page = await r.json();
+      csOrders = csOrders.concat(page);
+      if (page.length < PAGE) break; // halaman terakhir — selesai
+      offset += PAGE;
+    }
 
     // Simpan ke cache
     try { sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: csOrders })); } catch (_) {}
