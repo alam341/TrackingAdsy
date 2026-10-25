@@ -68,20 +68,24 @@ module.exports = async function handler(req, res) {
   // 1. Baca raw body sebelum parse apapun
   const rawBody = await readRawBody(req);
 
-  // 2. Verifikasi HMAC-SHA256
-  const secret = process.env.MENGANTAR_WEBHOOK_SECRET;
+  // 2. Verifikasi HMAC-SHA256 — support 2 akun Mengantar (secret berbeda per akun)
+  const secrets = [
+    process.env.MENGANTAR_WEBHOOK_SECRET,
+    process.env.MENGANTAR_WEBHOOK_SECRET_2,
+  ].filter(Boolean);
+
   const timestamp = req.headers['x-timestamp'] || '';
-  const received = req.headers['x-signature'] || '';
+  const received  = req.headers['x-signature'] || '';
 
-  if (secret) {
-    const expected = crypto
-      .createHmac('sha256', secret)
-      .update(`${timestamp}.${rawBody}`)
-      .digest('hex');
-
-    const valid =
-      expected.length === received.length &&
-      crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(received));
+  if (secrets.length > 0) {
+    const valid = secrets.some(secret => {
+      const expected = crypto
+        .createHmac('sha256', secret)
+        .update(`${timestamp}.${rawBody}`)
+        .digest('hex');
+      return expected.length === received.length &&
+        crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(received));
+    });
 
     if (!valid) {
       console.error('[webhook] Signature tidak valid');
