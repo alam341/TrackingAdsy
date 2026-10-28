@@ -219,10 +219,12 @@
       <div class="pl-stat"><b>—</b>Aktif diproses</div>
     </div>
 
-    <!-- Topbar: search + count -->
+    <!-- Topbar: search + month picker + count -->
     <div class="pl-topbar">
       <input type="text" class="pl-search" id="pl-search"
         placeholder="🔍 Cari nama / resi / CS..." oninput="onSearch()">
+      <input type="month" id="pl-month" class="pl-search" style="max-width:160px;flex:none"
+        onchange="loadPipeline()">
       <div class="pl-count" id="pl-count"></div>
     </div>
 
@@ -272,7 +274,6 @@ COLS.forEach(c => { colPages[c.key] = 0; filteredCols[c.key] = []; });
 // ── Init ──────────────────────────────────────────────────────────────────
 async function init() {
   await initSupabaseClient();
-  const { data: { user } } = await window._sb?.auth.getUser() || {};
   let authUser = null;
   try {
     const sess = await sbGetSession();
@@ -282,6 +283,10 @@ async function init() {
   } catch(e) {
     location.href = 'index.html'; return;
   }
+  // Set default bulan ini
+  const now = new Date();
+  document.getElementById('pl-month').value =
+    `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   renderLayout('pipeline-undell', authUser);
   await loadPipeline();
 }
@@ -291,7 +296,10 @@ async function loadPipeline() {
   const btn = document.getElementById('pl-refresh-btn');
   if (btn) { btn.disabled = true; btn.textContent = '...'; }
   try {
-    const r = await fetch('/api/room-work?tab=semua&limit=2000');
+    const monthVal = document.getElementById('pl-month')?.value || '';
+    const [year, month] = monthVal.split('-');
+    const qs = year && month ? `&year=${year}&month=${month}` : '';
+    const r = await fetch(`/api/room-work?tab=pipeline${qs}`);
     if (!r.ok) throw new Error('API error ' + r.status);
     allData = await r.json();
     COLS.forEach(c => colPages[c.key] = 0);
