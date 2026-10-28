@@ -7,6 +7,18 @@ const { checkResiAuto } = require('../lib/tracking-router');
 const { STAGE_STEP } = require('../lib/stage-engine');
 
 const ALLOWED_TABLES = ['akuisisi_orders', 'marketplace_orders', 'crm_orders'];
+const CS_SUPABASE_URL = 'https://lqpcnzdssvvcayqvdjxs.supabase.co';
+
+function detectEkspedisi(resi) {
+  const r = String(resi).trim();
+  if (/^MGT\d/i.test(r))        return 'SAP';
+  if (/^SPXID/i.test(r))        return 'SPX';
+  if (/^26MNG\d+$/i.test(r))    return 'POS';
+  if (/^C1[A-Z0-9]{5,8}$/i.test(r)) return 'LION';
+  if (/^\d{16}$/.test(r))       return 'JNE';
+  if (/^(JO|JJ)\d{10}$/i.test(r)) return 'J&T';
+  return null;
+}
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -24,19 +36,43 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    let row = null;
+
+    // 1. Cari di akuisisi_orders dulu
     const rows = await sbFetch(`${table}?select=id,ekspedisi,kota_tujuan&id=eq.${encodeURIComponent(id)}`);
-    const row = rows && rows[0];
-    if (!row) { res.status(404).json({ error: 'Order tidak ditemukan' }); return; }
-    if (!row.ekspedisi) { res.status(400).json({ error: 'Ekspedisi belum diketahui buat order ini' }); return; }
+    row = rows && rows[0];
+
+    // 2. Kalau tidak ada, fallback: detect ekspedisi dari format resi
+    if (!row) {
+      const ekspedisi = detectEkspedisi(id);
+      if (!ekspedisi) {
+        res.status(404).json({ error: 'Order tidak ditemukan dan ekspedisi tidak bisa dideteksi' });
+        return;
+      }
+      row = { id, ekspedisi, kota_tujuan: '' };
+    }
+
+    if (!row.ekspedisi) {
+      res.status(400).json({ error: 'Ekspedisi belum diketahui buat order ini' });
+      return;
+    }
 
     const { stage, detail } = await checkResiAuto(row);
     const patch = {
-      status_resi: stage,
-      status_resi_step: STAGE_STEP[stage],
+      id,
+      ekspedisi:              row.ekspedisi,
+      status_resi:            stage,
+      status_resi_step:       STAGE_STEP[stage],
       status_resi_updated_at: new Date().toISOString(),
-      status_resi_detail: detail,
+      status_resi_detail:     detail,
     };
-    await sbFetch(`${table}?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) });
+
+    // Upsert — insert kalau belum ada, update kalau sudah ada
+    await sbFetch(`${table}?on_conflict=id`, {
+      method:  'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body:    JSON.stringify(patch),
+    });
 
     res.status(200).json({ stage, step: STAGE_STEP[stage], detail });
   } catch (e) {
