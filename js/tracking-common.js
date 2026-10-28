@@ -975,37 +975,26 @@ function initTrackingPage(cfg) {
     btn.disabled = true;
     let totalUpdated = 0, totalFailed = 0, round = 0;
 
-    const dateParams = new URLSearchParams();
-    if (st.filterStart) dateParams.set('from', trYmd(st.filterStart));
-    if (st.filterEnd)   dateParams.set('to',   trYmd(st.filterEnd));
+    // Ambil semua resi BELUM_DICEK dari filter aktif di layar
+    const belumDicek = (st.orders || []).filter(o =>
+      !o.id.startsWith('IMP-') && (!o.status_resi || o.status_resi === 'BELUM_DICEK')
+    );
 
-    // Step 1: backfill dulu — insert resi baru dari CS Input ke akuisisi_orders (pakai filter tanggal)
     try {
-      btn.textContent = '📡 Sync... (registrasi resi baru)';
-      let offset = 0, hasMore = true;
-      while (hasMore) {
-        const r = await fetch(`/api/backfill-tracking?offset=${offset}&` + dateParams.toString()).then(r => r.json());
-        hasMore = r.hasMore;
-        offset  = r.offset || (offset + 500);
+      // Cek satu per satu persis seperti tombol "Cek Ulang"
+      const BATCH = 5;
+      for (let i = 0; i < belumDicek.length; i += BATCH) {
+        const chunk = belumDicek.slice(i, i + BATCH);
+        btn.textContent = `📡 Sync... (${i}/${belumDicek.length})`;
+        await Promise.all(chunk.map(async o => {
+          try {
+            const r = await fetch(`/api/tracking-check?table=akuisisi_orders&id=${encodeURIComponent(o.id)}`);
+            const d = await r.json();
+            if (d.stage && d.stage !== 'BELUM_DICEK') totalUpdated++;
+            else totalFailed++;
+          } catch (_) { totalFailed++; }
+        }));
       }
-    } catch (_) { /* backfill gagal tidak fatal */ }
-
-    // Step 2: run-check dengan filter tanggal (include null order_date via or())
-    const runOnce = async () => {
-      round++;
-      btn.textContent = `📡 Sync... (${totalUpdated} updated)`;
-      const r = await fetch('/api/run-check?' + dateParams.toString(), { method: 'GET' });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
-    };
-
-    try {
-      let result;
-      do {
-        result = await runOnce();
-        totalUpdated += result.updated || 0;
-        totalFailed  += result.failed  || 0;
-      } while (result.hasMore);
 
       // Clear cache supaya tracking status terbaru langsung keliatan
       const cacheKey = `cs_orders_${trYmd(st.filterStart)}_${trYmd(st.filterEnd)}`;
@@ -1013,8 +1002,7 @@ function initTrackingPage(cfg) {
       await load(true); // reload list tanpa spinner
       applyFilter();
       const msg = `✅ Sync selesai — ${totalUpdated} resi diupdate` +
-        (totalFailed ? `, ${totalFailed} gagal` : '') +
-        (result.roomWorkAdded ? `, ${result.roomWorkAdded} masuk Room Work` : '');
+        (totalFailed ? `, ${totalFailed} belum ada data` : '');
       showToast(msg, totalFailed ? 'warning' : 'success');
     } catch (e) {
       showToast('❌ Sync gagal: ' + e.message, 'error');
