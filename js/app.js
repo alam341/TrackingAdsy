@@ -97,7 +97,7 @@ function renderLayout(activePage, user, products = []) {
         </a>
         <div class="sidebar-group-label">PENGATURAN</div>
         <a href="settings-tim.html" class="nav-item ${activePage === 'settings-tim' ? 'active' : ''}">
-          <span class="nav-icon">${ICON_SETTINGS}</span><span>Kelola Tim</span>
+          <span class="nav-icon">${ICON_SETTINGS}</span><span>Setting</span>
         </a>
       </nav>
       <div class="sidebar-bottom">
