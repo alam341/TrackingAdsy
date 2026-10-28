@@ -22,10 +22,10 @@
 <script>
 // ── FU Template defaults ──────────────────────────────────────────────────────
 const FU_DEFAULTS = {
-  info: `⚠️ *[Info] Paket Bermasalah*\n\nHalo [nama_cs]!\n\nAda paket yang perlu ditindaklanjuti:\n\n📦 Resi: *[resi]*\n🚚 Ekspedisi: [ekspedisi]\n📍 Kota: [kota]\n❌ Kasus: [kasus]\n\nMohon segera follow up ke kurir ya! 🙏`,
-  fu1:  `📨 *[FU 1] Paket Bermasalah*\n\nHalo [nama_cs], mengingatkan:\n\n📦 Resi: *[resi]*\n🚚 Ekspedisi: [ekspedisi]\n📍 Kota: [kota]\n❌ Kasus: [kasus]\n\nBelum ada update — mohon segera dikonfirmasi! 🙏`,
-  fu2:  `🔔 *[FU 2] Pengingat Paket Bermasalah*\n\nHalo [nama_cs], mengingatkan kembali:\n\n📦 Resi: *[resi]*\n🚚 Ekspedisi: [ekspedisi]\n📍 Kota: [kota]\n❌ Kasus: [kasus]\n\nSudah 2 hari belum ada konfirmasi — tolong segera ditindak! 🙏`,
-  fu3:  `🚨 *[FU 3 - Terakhir] Paket Bermasalah*\n\nHalo [nama_cs], ini follow up terakhir:\n\n📦 Resi: *[resi]*\n🚚 Ekspedisi: [ekspedisi]\n📍 Kota: [kota]\n❌ Kasus: [kasus]\n\nHarap konfirmasi hari ini ya! 🙏`,
+  info: `⚠️ *[Info] Paket Bermasalah*\n\nHalo [nama_cs]!\n\nAda paket yang perlu ditindaklanjuti:\n\n👤 Customer: [nama_customer] ([hp_customer])\n📦 Produk: [produk]\n🔢 Resi: *[resi]*\n🚚 Ekspedisi: [ekspedisi]\n📍 Kota: [kota]\n❌ Kasus: [kasus]\n\nMohon segera follow up ke kurir ya! 🙏`,
+  fu1:  `📨 *[FU 1] Paket Bermasalah*\n\nHalo [nama_cs], mengingatkan:\n\n👤 Customer: [nama_customer] ([hp_customer])\n📦 Produk: [produk]\n🔢 Resi: *[resi]*\n🚚 Ekspedisi: [ekspedisi]\n📍 Kota: [kota]\n❌ Kasus: [kasus]\n\nBelum ada update — mohon segera dikonfirmasi! 🙏`,
+  fu2:  `🔔 *[FU 2] Pengingat Paket Bermasalah*\n\nHalo [nama_cs], mengingatkan kembali:\n\n👤 Customer: [nama_customer] ([hp_customer])\n📦 Produk: [produk]\n🔢 Resi: *[resi]*\n🚚 Ekspedisi: [ekspedisi]\n📍 Kota: [kota]\n❌ Kasus: [kasus]\n\nSudah 2 hari belum ada konfirmasi — tolong segera ditindak! 🙏`,
+  fu3:  `🚨 *[FU 3 - Terakhir] Paket Bermasalah*\n\nHalo [nama_cs], ini follow up terakhir:\n\n👤 Customer: [nama_customer] ([hp_customer])\n📦 Produk: [produk]\n🔢 Resi: *[resi]*\n🚚 Ekspedisi: [ekspedisi]\n📍 Kota: [kota]\n❌ Kasus: [kasus]\n\nHarap konfirmasi hari ini ya! 🙏`,
 };
 
 function fuLoadTemplates() {
@@ -42,8 +42,8 @@ function fuSave(key) {
   const el = document.getElementById('fu-tpl-' + key);
   if (!el) return;
   localStorage.setItem('fu_tpl_' + key, el.value);
-  const btn = document.getElementById('fu-save-' + key);
-  if (btn) { btn.textContent = '✅ Tersimpan'; setTimeout(() => { btn.textContent = 'Simpan'; }, 1800); }
+  const labels = { info: 'FU Info', fu1: 'FU 1', fu2: 'FU 2', fu3: 'FU 3' };
+  showToast(`Template ${labels[key] || key} berhasil disimpan`, 'success');
 }
 
 function fuReset(key) {
@@ -77,7 +77,7 @@ function renderTeamPage() {
       <div class="card-header">
         <div class="card-header-left">
           <h3>💬 Template Follow Up</h3>
-          <div class="card-sub">Pesan yang dikirim otomatis ke CS saat paket bermasalah. Variabel: <code>[nama_cs]</code> <code>[resi]</code> <code>[ekspedisi]</code> <code>[kota]</code> <code>[kasus]</code></div>
+          <div class="card-sub">Pesan yang dikirim otomatis ke CS saat paket bermasalah. Variabel yang bisa dipakai: <code>[nama_cs]</code> <code>[nama_customer]</code> <code>[hp_customer]</code> <code>[produk]</code> <code>[resi]</code> <code>[ekspedisi]</code> <code>[kota]</code> <code>[kasus]</code></div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:4px 0 12px">
