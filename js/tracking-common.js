@@ -990,11 +990,11 @@ function initTrackingPage(cfg) {
       }
     } catch (_) { /* backfill gagal tidak fatal */ }
 
-    // Step 2: run-check tanpa filter tanggal — supaya resi order_date=null ikut ketangkap
+    // Step 2: run-check dengan filter tanggal (include null order_date via or())
     const runOnce = async () => {
       round++;
       btn.textContent = `📡 Sync... (${totalUpdated} updated)`;
-      const r = await fetch('/api/run-check', { method: 'GET' });
+      const r = await fetch('/api/run-check?' + dateParams.toString(), { method: 'GET' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     };
