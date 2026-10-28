@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline Undell — adsy-tracking</title>
+<link rel="icon" type="image/png" href="img/logo-adsy.png">
+<link rel="stylesheet" href="css/main.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ── Board layout ─────────────────────────────────────────────────────── */
+.pl-board {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+@media (max-width: 1200px) { .pl-board { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 700px)  { .pl-board { grid-template-columns: repeat(2, 1fr); } }
+
+/* ── Column ───────────────────────────────────────────────────────────── */
+.pl-col {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+.pl-col-hdr {
+  padding: 11px 12px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.pl-col-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pl-col-sub  { font-size: 10px; color: var(--text-3); margin-top: 3px; }
+.pl-col-cnt  {
+  font-size: 10px; font-weight: 700;
+  padding: 2px 7px; border-radius: 20px;
+  margin-left: auto; white-space: nowrap; flex-shrink: 0;
+}
+
+.col-fu-info .pl-col-title { color: var(--text-2); }
+.col-fu-info .pl-col-cnt   { background: rgba(100,116,139,.12); color: var(--text-2); }
+.col-fu1 .pl-col-title { color: #fbbf24; }
+.col-fu1 .pl-col-cnt   { background: rgba(245,158,11,.15); color: #fbbf24; }
+.col-fu2 .pl-col-title { color: #fb923c; }
+.col-fu2 .pl-col-cnt   { background: rgba(249,115,22,.15); color: #fb923c; }
+.col-fu3 .pl-col-title { color: #f87171; }
+.col-fu3 .pl-col-cnt   { background: rgba(239,68,68,.15); color: #f87171; }
+.col-bales .pl-col-title { color: var(--success); }
+.col-bales .pl-col-cnt   { background: rgba(6,194,112,.12); color: var(--success); }
+.col-lapor .pl-col-title { color: #60a5fa; }
+.col-lapor .pl-col-cnt   { background: rgba(96,165,250,.12); color: #60a5fa; }
+
+/* ── Column body ──────────────────────────────────────────────────────── */
+.pl-col-body {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 60px;
+}
+.pl-col-foot {
+  padding: 6px 8px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.pl-page-info { font-size: 10px; color: var(--text-3); text-align: center; flex: 1; }
+.pl-page-btn  {
+  width: 24px; height: 24px; border-radius: 6px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-2); font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .1s; flex-shrink: 0;
+}
+.pl-page-btn:hover:not(:disabled) { background: var(--primary); color: #fff; border-color: var(--primary); }
+.pl-page-btn:disabled { opacity: .3; cursor: default; }
+
+/* ── Cards ────────────────────────────────────────────────────────────── */
+.pl-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 9px 10px;
+  cursor: pointer;
+  transition: box-shadow .12s, transform .1s;
+}
+.pl-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,.1); transform: translateY(-1px); }
+.pl-card-name  {
+  font-size: 12px; font-weight: 600; color: var(--text-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px;
+}
+.pl-card-resi  {
+  font-size: 10px; color: var(--text-3); font-family: monospace;
+  margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pl-card-tags  { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 5px; }
+.pl-card-date  { font-size: 10px; color: var(--text-3); }
+.ptag {
+  font-size: 10px; font-weight: 600; padding: 1px 6px;
+  border-radius: 20px; white-space: nowrap;
+}
+.ptag-eksp  { background: rgba(67,97,238,.1);  color: var(--primary); }
+.ptag-cs    { background: rgba(6,194,112,.1);   color: var(--success); }
+.ptag-fu    { background: rgba(245,158,11,.12); color: #fbbf24; }
+.ptag-kasus { background: rgba(239,68,68,.08);  color: var(--danger); }
+.ptag-hari  { background: rgba(100,116,139,.1); color: var(--text-2); }
+
+/* ── Summary bar ──────────────────────────────────────────────────────── */
+.pl-summary {
+  display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.pl-stat {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 9px 14px; font-size: 11px; color: var(--text-3);
+}
+.pl-stat b { font-size: 18px; font-weight: 700; display: block; margin-bottom: 1px; }
+.pl-stat.s-warn b    { color: #fbbf24; }
+.pl-stat.s-danger b  { color: var(--danger); }
+.pl-stat.s-success b { color: var(--success); }
+.pl-stat.s-info b    { color: #60a5fa; }
+
+/* ── Topbar ───────────────────────────────────────────────────────────── */
+.pl-topbar {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px; flex-wrap: wrap;
+}
+.pl-search {
+  flex: 1; min-width: 200px; max-width: 280px;
+  border: 1px solid var(--border); background: var(--input-bg);
+  color: var(--text-1); border-radius: 8px;
+  padding: 7px 12px; font-size: .82rem; font-family: inherit;
+}
+.pl-refresh {
+  border: 1px solid var(--border); background: var(--input-bg);
+  color: var(--text-2); border-radius: 8px;
+  padding: 7px 14px; font-size: .78rem; font-weight: 600;
+  cursor: pointer; transition: all .15s; margin-left: auto;
+}
+.pl-refresh:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+.pl-count { font-size: 12px; color: var(--text-3); }
+
+/* ── Empty ────────────────────────────────────────────────────────────── */
+.pl-empty { text-align: center; padding: 20px 8px; color: var(--text-3); font-size: 11px; }
+
+/* ── Modal ────────────────────────────────────────────────────────────── */
+.pl-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  display: none; align-items: center; justify-content: center;
+  z-index: 1000; backdrop-filter: blur(4px);
+}
+.pl-modal-overlay.open { display: flex; }
+.pl-modal {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; width: 100%; max-width: 460px;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,.2);
+}
+.pl-modal-hdr {
+  padding: 14px 16px 12px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px; position: sticky; top: 0; background: var(--card); z-index: 1;
+}
+.pl-modal-title { font-size: 14px; font-weight: 700; color: var(--text-1); }
+.pl-modal-close {
+  width: 26px; height: 26px; border-radius: 6px;
+  background: var(--bg); border: 1px solid var(--border);
+  cursor: pointer; color: var(--text-2); font-size: 13px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.pl-modal-close:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+.pl-modal-body { padding: 14px 16px; }
+.pl-detail-row {
+  display: flex; gap: 8px; margin-bottom: 9px; font-size: 13px;
+}
+.pl-detail-lbl { color: var(--text-3); min-width: 120px; flex-shrink: 0; font-size: 12px; }
+.pl-detail-val { color: var(--text-1); font-weight: 500; word-break: break-all; }
+.pl-divider { height: 1px; background: var(--border); margin: 12px 0; }
+.pl-stage-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 12px; font-weight: 700; margin-bottom: 14px;
+}
+</style>
+</head>
+<body>
+<div id="sidebar-slot"></div>
+<div id="header-slot"></div>
+
+<main class="main-content" id="main-content">
+  <div class="page-content">
+
+    <!-- Page header -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div>
+        <h2 style="font-size:1.2rem;font-weight:800;margin:0">⚠️ Pipeline Undell</h2>
+        <p style="font-size:.78rem;color:var(--text-3);margin:2px 0 0">Tracking BERMASALAH — dari FU Info hingga resolusi</p>
+      </div>
+      <button class="pl-refresh" id="pl-refresh-btn" onclick="loadPipeline()" style="margin-left:auto">↻ Refresh</button>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="pl-summary" id="pl-summary">
+      <div class="pl-stat"><b>—</b>Aktif diproses</div>
+    </div>
+
+    <!-- Topbar: search + count -->
+    <div class="pl-topbar">
+      <input type="text" class="pl-search" id="pl-search"
+        placeholder="🔍 Cari nama / resi / CS..." oninput="onSearch()">
+      <div class="pl-count" id="pl-count"></div>
+    </div>
+
+    <!-- Board -->
+    <div class="pl-board" id="pl-board">
+      <div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-3)">
+        <div class="spinner" style="margin:0 auto 12px"></div>Memuat data...
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Detail Modal -->
+<div class="pl-modal-overlay" id="pl-modal">
+  <div class="pl-modal">
+    <div class="pl-modal-hdr">
+      <div>
+        <div class="pl-modal-title" id="dm-name">—</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px" id="dm-resi">—</div>
+      </div>
+      <button class="pl-modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="pl-modal-body" id="dm-body"></div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script src="js/db.js"></script>
+<script>
+const PAGE_SIZE = 8;
+
+const COLS = [
+  { key: 'fu_info', cls: 'col-fu-info', icon: '📨', label: 'FU Info',          sub: 'Alert pertama dikirim' },
+  { key: 'fu1',     cls: 'col-fu1',     icon: '🟡', label: 'FU 1',             sub: 'Pengingat hari ke-2' },
+  { key: 'fu2',     cls: 'col-fu2',     icon: '🟠', label: 'FU 2',             sub: 'Pengingat hari ke-3' },
+  { key: 'fu3',     cls: 'col-fu3',     icon: '🚨', label: 'FU 3 / Tdk Bales', sub: 'Alert terakhir / tidak respon' },
+  { key: 'bales',   cls: 'col-bales',   icon: '✅', label: 'CS Bales',         sub: 'CS sudah konfirmasi' },
+  { key: 'lapor',   cls: 'col-lapor',   icon: '📤', label: 'Lapor Ekspedisi',  sub: 'Sudah dilaporkan ke kurir' },
+];
+
+let allData    = [];
+let colPages   = {};
+let filteredCols = {};
+COLS.forEach(c => { colPages[c.key] = 0; filteredCols[c.key] = []; });
+
+// ── Init ──────────────────────────────────────────────────────────────────
+async function init() {
+  await initSupabaseClient();
+  const { data: { user } } = await window._sb?.auth.getUser() || {};
+  let authUser = null;
+  try {
+    const sess = await sbGetSession();
+    if (!sess) { location.href = 'index.html'; return; }
+    const profile = await dbGetProfile(sess.user.id);
+    authUser = { ...sess.user, name: profile.name, role: profile.role };
+  } catch(e) {
+    location.href = 'index.html'; return;
+  }
+  renderLayout('pipeline-undell', authUser);
+  await loadPipeline();
+}
+
+// ── Load room_work data via API ───────────────────────────────────────────
+async function loadPipeline() {
+  const btn = document.getElementById('pl-refresh-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    const r = await fetch('/api/room-work?tab=semua&limit=2000');
+    if (!r.ok) throw new Error('API error ' + r.status);
+    allData = await r.json();
+    COLS.forEach(c => colPages[c.key] = 0);
+    buildAndRender();
+  } catch(e) {
+    document.getElementById('pl-board').innerHTML =
+      `<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--danger)">Gagal memuat: ${escapeHtml(e.message)}</div>`;
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '↻ Refresh'; }
+}
+
+// ── Classify row ke kolom ─────────────────────────────────────────────────
+function getCol(row) {
+  if (row.lapor_ekspedisi) return 'lapor';
+  if (row.cs_responded)   return 'bales';
+  const fu = row.fu_count || 0;
+  if (fu >= 4) return 'fu3';
+  if (fu === 3) return 'fu2';
+  if (fu === 2) return 'fu1';
+  return 'fu_info';
+}
+
+// ── Build data per kolom + render ─────────────────────────────────────────
+function buildAndRender() {
+  const q = (document.getElementById('pl-search')?.value || '').toLowerCase();
+  const cols = {};
+  COLS.forEach(c => cols[c.key] = []);
+
+  allData.forEach(row => {
+    if (q) {
+      const hay = `${row.cs_nama} ${row.resi} ${row.nama_pembeli} ${row.kota_tujuan}`.toLowerCase();
+      if (!hay.includes(q)) return;
+    }
+    cols[getCol(row)].push(row);
+  });
+
+  filteredCols = cols;
+
+  // Summary
+  const aktif    = cols.fu_info.length + cols.fu1.length + cols.fu2.length + cols.fu3.length;
+  const tdk_bales = cols.fu3.length;
+  const bales    = cols.bales.length;
+  const lapor    = cols.lapor.length;
+  const total    = Object.values(cols).reduce((s, c) => s + c.length, 0);
+  document.getElementById('pl-summary').innerHTML = `
+    <div class="pl-stat s-warn"><b>${aktif}</b>Aktif diproses</div>
+    <div class="pl-stat s-danger"><b>${tdk_bales}</b>CS Tidak Bales</div>
+    <div class="pl-stat s-success"><b>${bales}</b>CS Bales</div>
+    <div class="pl-stat s-info"><b>${lapor}</b>Lapor Ekspedisi</div>
+    <div class="pl-stat"><b>${total}</b>Total</div>
+  `;
+  document.getElementById('pl-count').textContent = `${total} paket ditemukan`;
+  renderBoard();
+}
+
+function onSearch() {
+  COLS.forEach(c => colPages[c.key] = 0);
+  buildAndRender();
+}
+
+// ── Render board ──────────────────────────────────────────────────────────
+function renderBoard() {
+  document.getElementById('pl-board').innerHTML = COLS.map(col => {
+    const items    = filteredCols[col.key] || [];
+    const pg       = Math.min(colPages[col.key], Math.max(0, Math.ceil(items.length / PAGE_SIZE) - 1));
+    colPages[col.key] = pg;
+    const totalPg  = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+    const sliced   = items.slice(pg * PAGE_SIZE, (pg + 1) * PAGE_SIZE);
+
+    const cardsHtml = sliced.length
+      ? sliced.map(row => cardHtml(row)).join('')
+      : `<div class="pl-empty">—</div>`;
+
+    const footHtml = items.length > PAGE_SIZE ? `
+      <div class="pl-col-foot">
+        <button class="pl-page-btn" onclick="changePage('${col.key}',-1)" ${pg === 0 ? 'disabled' : ''}>‹</button>
+        <div class="pl-page-info">${pg + 1} / ${totalPg}</div>
+        <button class="pl-page-btn" onclick="changePage('${col.key}',1)" ${pg >= totalPg - 1 ? 'disabled' : ''}>›</button>
+      </div>` : '';
+
+    return `
+      <div class="pl-col ${col.cls}">
+        <div class="pl-col-hdr">
+          <div class="pl-col-title">
+            <span>${col.icon}</span>${col.label}
+            <span class="pl-col-cnt">${items.length}</span>
+          </div>
+          <div class="pl-col-sub">${col.sub}</div>
+        </div>
+        <div class="pl-col-body">${cardsHtml}</div>
+        ${footHtml}
+      </div>`;
+  }).join('');
+}
+
+function changePage(key, dir) {
+  const total   = filteredCols[key]?.length || 0;
+  const totalPg = Math.ceil(total / PAGE_SIZE);
+  colPages[key] = Math.max(0, Math.min((colPages[key] || 0) + dir, totalPg - 1));
+  renderBoard();
+}
+
+// ── Card HTML ─────────────────────────────────────────────────────────────
+function cardHtml(row) {
+  const hari  = getHari(row.fu_info_at || row.created_at);
+  const hariTag = hari ? `<span class="ptag ptag-hari">📅 H+${hari}</span>` : '';
+  const ekspTag = row.ekspedisi  ? `<span class="ptag ptag-eksp">${escapeHtml(row.ekspedisi)}</span>` : '';
+  const csTag   = row.cs_nama    ? `<span class="ptag ptag-cs">👤 ${escapeHtml(row.cs_nama)}</span>` : '';
+  const kasusTag = row.case_undel ? `<span class="ptag ptag-kasus">${escapeHtml(row.case_undel)}</span>` : '';
+  const fuTag   = (row.fu_count || 0) > 0
+    ? `<span class="ptag ptag-fu">FU ${row.fu_count}</span>` : '';
+
+  return `
+    <div class="pl-card" onclick="openModal('${escapeHtml(String(row.resi))}')">
+      <div class="pl-card-name">${escapeHtml(row.nama_pembeli || row.cs_nama || '-')}</div>
+      <div class="pl-card-resi">${escapeHtml(row.resi || '-')}</div>
+      <div class="pl-card-tags">${ekspTag}${csTag}${kasusTag}${hariTag}${fuTag}</div>
+      <div class="pl-card-date">${fmtDate(row.fu_info_at || row.created_at)}</div>
+    </div>`;
+}
+
+function getHari(iso) {
+  if (!iso) return null;
+  const diff = Date.now() - new Date(iso).getTime();
+  return Math.max(0, Math.floor(diff / 86400000));
+}
+
+function fmtDate(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
+// ── Detail Modal ──────────────────────────────────────────────────────────
+function openModal(resi) {
+  const row = allData.find(r => String(r.resi) === String(resi));
+  if (!row) return;
+
+  const col      = getCol(row);
+  const colMeta  = COLS.find(c => c.key === col);
+  const stageBg  = {
+    fu_info: 'rgba(100,116,139,.12)', fu1: 'rgba(245,158,11,.12)',
+    fu2: 'rgba(249,115,22,.12)',      fu3: 'rgba(239,68,68,.12)',
+    bales: 'rgba(6,194,112,.1)',      lapor: 'rgba(96,165,250,.12)',
+  }[col] || '';
+  const stageColor = {
+    fu_info: 'var(--text-2)', fu1: '#fbbf24', fu2: '#fb923c',
+    fu3: 'var(--danger)',     bales: 'var(--success)', lapor: '#60a5fa',
+  }[col] || 'var(--text-1)';
+
+  document.getElementById('dm-name').textContent = row.nama_pembeli || row.cs_nama || '-';
+  document.getElementById('dm-resi').textContent = row.resi || '-';
+
+  const fuTimeline = [
+    row.fu_info_at ? `<div style="font-size:11px;color:var(--text-3);margin-bottom:3px">📨 FU Info — ${fmtDatetime(row.fu_info_at)}</div>` : '',
+    row.fu_1_at    ? `<div style="font-size:11px;color:var(--text-3);margin-bottom:3px">🟡 FU 1 — ${fmtDatetime(row.fu_1_at)}</div>` : '',
+    row.fu_2_at    ? `<div style="font-size:11px;color:var(--text-3);margin-bottom:3px">🟠 FU 2 — ${fmtDatetime(row.fu_2_at)}</div>` : '',
+    row.fu_3_at    ? `<div style="font-size:11px;color:var(--text-3);margin-bottom:3px">🚨 FU 3 — ${fmtDatetime(row.fu_3_at)}</div>` : '',
+    row.cs_responded_at ? `<div style="font-size:11px;color:var(--success);margin-bottom:3px">✅ CS Bales — ${fmtDatetime(row.cs_responded_at)}</div>` : '',
+    row.lapor_ekspedisi_at ? `<div style="font-size:11px;color:#60a5fa;margin-bottom:3px">📤 Lapor Ekspedisi — ${fmtDatetime(row.lapor_ekspedisi_at)}</div>` : '',
+  ].filter(Boolean).join('');
+
+  document.getElementById('dm-body').innerHTML = `
+    <div class="pl-stage-badge" style="background:${stageBg};color:${stageColor}">
+      ${colMeta?.icon || ''} ${colMeta?.label || col}
+    </div>
+    <div class="pl-detail-row">
+      <span class="pl-detail-lbl">Nama Customer</span>
+      <span class="pl-detail-val">${escapeHtml(row.nama_pembeli || '-')}</span>
+    </div>
+    <div class="pl-detail-row">
+      <span class="pl-detail-lbl">No. HP Customer</span>
+      <span class="pl-detail-val">${row.hp_pembeli
+        ? `<a href="https://wa.me/${row.hp_pembeli.replace(/\D/g,'')}" target="_blank"
+            style="color:var(--primary)">${escapeHtml(row.hp_pembeli)}</a>`
+        : '-'}</span>
+    </div>
+    <div class="pl-detail-row">
+      <span class="pl-detail-lbl">Produk</span>
+      <span class="pl-detail-val">${escapeHtml(row.produk || '-')}</span>
+    </div>
+    <div class="pl-divider"></div>
+    <div class="pl-detail-row">
+      <span class="pl-detail-lbl">No. Resi</span>
+      <span class="pl-detail-val" style="font-family:monospace">${escapeHtml(row.resi || '-')}</span>
+    </div>
+    <div class="pl-detail-row">
+      <span class="pl-detail-lbl">Ekspedisi</span>
+      <span class="pl-detail-val">${escapeHtml(row.ekspedisi || '-')}</span>
+    </div>
+    <div class="pl-detail-row">
+      <span class="pl-detail-lbl">Kota Tujuan</span>
+      <span class="pl-detail-val">${escapeHtml(row.kota_tujuan || '-')}</span>
+    </div>
+    <div class="pl-detail-row">
+      <span class="pl-detail-lbl">Kasus</span>
+      <span class="pl-detail-val">${escapeHtml(row.case_undel || '-')}</span>
+    </div>
+    <div class="pl-divider"></div>
+    <div class="pl-detail-row">
+      <span class="pl-detail-lbl">CS</span>
+      <span class="pl-detail-val">${escapeHtml(row.cs_nama || '-')}</span>
+    </div>
+    <div class="pl-detail-row">
+      <span class="pl-detail-lbl">No. WA CS</span>
+      <span class="pl-detail-val">${row.cs_no_wa
+        ? `<a href="https://wa.me/${row.cs_no_wa.replace(/\D/g,'')}" target="_blank"
+            style="color:var(--primary)">${escapeHtml(row.cs_no_wa)}</a>`
+        : '-'}</span>
+    </div>
+    <div class="pl-divider"></div>
+    <div style="font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:8px">Timeline FU</div>
+    ${fuTimeline || '<div style="font-size:11px;color:var(--text-3)">Belum ada FU dikirim</div>'}
+  `;
+
+  document.getElementById('pl-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('pl-modal').classList.remove('open');
+}
+document.getElementById('pl-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('pl-modal')) closeModal();
+});
+
+function fmtDatetime(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm}/${d.getFullYear()} ${hh}:${mi}`;
+}
+
+init();
+</script>
+</body>
+</html>
