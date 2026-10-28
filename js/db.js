@@ -259,19 +259,16 @@ async function dbGetTeamMembers(domain) {
   }));
 }
 
-// ── Room Work — ambil FU status untuk BERMASALAH resi (batch) ─────────────────
+// ── Room Work — ambil FU status untuk BERMASALAH resi via API (service role) ──
 async function dbGetRoomWorkByResi(resiList) {
   if (!resiList || !resiList.length) return [];
-  const CHUNK = 500;
-  const results = [];
-  for (let i = 0; i < resiList.length; i += CHUNK) {
-    const chunk = resiList.slice(i, i + CHUNK);
-    const { data, error } = await _sb.from('room_work')
-      .select('resi,fu_count,cs_responded')
-      .in('resi', chunk);
-    if (!error && data) results.push(...data);
-  }
-  return results;
+  const r = await fetch('/api/room-work', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ resi: resiList }),
+  });
+  if (!r.ok) throw new Error('room-work API error: ' + r.status);
+  return r.json();
 }
 
 // ── Mapping kode SKU -> nama produk ──────────────────────────────────────────
