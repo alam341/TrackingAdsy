@@ -204,7 +204,7 @@ async function dbGetAkuisisiOrders(dateFrom, dateTo, preloadedSkuMap = null) {
     for (let i = 0; i < resiIds.length; i += CHUNK) chunks.push(resiIds.slice(i, i + CHUNK));
     const trackResults = await Promise.all(chunks.map(chunk =>
       _sb.from('akuisisi_orders')
-        .select('id,status_resi,status_resi_step,status_resi_updated_at,ekspedisi,followup_attempts,followup_responded,followup_courier_notified,status_resi_detail->>masalah_kategori,status_resi_detail->>bermasalah_since,status_resi_detail->>redeliver_attempts')
+        .select('id,status_resi,status_resi_step,status_resi_updated_at,ekspedisi,cek_sl,followup_attempts,followup_responded,followup_courier_notified,status_resi_detail->>masalah_kategori,status_resi_detail->>bermasalah_since,status_resi_detail->>redeliver_attempts')
         .in('id', chunk)
     ));
     const trackMap = {};
@@ -218,6 +218,7 @@ async function dbGetAkuisisiOrders(dateFrom, dateTo, preloadedSkuMap = null) {
       o.followup_attempts      = t.followup_attempts      || 0;
       o.followup_responded     = t.followup_responded     || false;
       o.followup_courier_notified = t.followup_courier_notified || false;
+      o.cek_sl                 = t.cek_sl                 || false;
       o.masalah_kategori       = t.masalah_kategori       || null;
       o.bermasalah_since       = t.bermasalah_since       || null;
       o.redeliver_attempts     = t.redeliver_attempts ? parseInt(t.redeliver_attempts) : 0;
@@ -256,6 +257,21 @@ async function dbGetTeamMembers(domain) {
     domain: 'akuisisi',
     role: cs.role,
   }));
+}
+
+// ── Room Work — ambil FU status untuk BERMASALAH resi (batch) ─────────────────
+async function dbGetRoomWorkByResi(resiList) {
+  if (!resiList || !resiList.length) return [];
+  const CHUNK = 500;
+  const results = [];
+  for (let i = 0; i < resiList.length; i += CHUNK) {
+    const chunk = resiList.slice(i, i + CHUNK);
+    const { data, error } = await _sb.from('room_work')
+      .select('resi,fu_count,cs_responded')
+      .in('resi', chunk);
+    if (!error && data) results.push(...data);
+  }
+  return results;
 }
 
 // ── Mapping kode SKU -> nama produk ──────────────────────────────────────────

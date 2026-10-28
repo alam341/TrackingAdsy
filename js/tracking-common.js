@@ -263,6 +263,26 @@ function initTrackingPage(cfg) {
       if (cfg.hasMarketplaceFilter && st.mpFilter) filters.marketplace = st.mpFilter;
       if (cfg.domain === 'akuisisi') {
         st.orders = await dbGetAkuisisiOrders(filters.dateFrom, filters.dateTo, cfg.skuMap || null);
+        // Batch fetch room_work untuk merge FU status ke BERMASALAH orders
+        const bermasalahResi = st.orders
+          .filter(o => trEffectiveStage(o) === 'BERMASALAH' && !String(o.id).startsWith('IMP-'))
+          .map(o => o.id);
+        if (bermasalahResi.length) {
+          try {
+            const rwData = await dbGetRoomWorkByResi(bermasalahResi);
+            const rwMap = {};
+            rwData.forEach(r => { rwMap[r.resi] = r; });
+            st.orders.forEach(o => {
+              const rw = rwMap[o.id];
+              if (rw) {
+                o._fuCount      = rw.fu_count      || 0;
+                o._csResponded  = rw.cs_responded  || false;
+              }
+            });
+          } catch (e) {
+            console.warn('[tracking] Gagal fetch room_work:', e.message);
+          }
+        }
       } else {
         st.orders = await dbGetTrackableOrders(cfg.table, filters);
       }
@@ -692,7 +712,8 @@ function initTrackingPage(cfg) {
     // perlu kontrol sort manual. Stage lain gak diubah urutannya (tetap by order_date desc
     // dari query).
     if (st.filterStage === 'BERMASALAH') {
-      const followupScore = o => (o.followup_attempts || 0) + (o.followup_responded ? 1 : 0) + (o.followup_courier_notified ? 1 : 0);
+      // Urut: yang belum di-cek SL & FU count paling sedikit duluan (paling butuh perhatian)
+      const followupScore = o => (o._fuCount || 0) + (o.cek_sl ? 10 : 0);
       list.sort((a, b) => followupScore(a) - followupScore(b));
     }
     // Tab BELUM_DICEK (langsung atau via sub-filter On Proses): resi yang format-nya
@@ -793,10 +814,17 @@ function initTrackingPage(cfg) {
     const initial = name.trim().charAt(0).toUpperCase() || '?';
     const mpBadge = cfg.hasMarketplaceFilter && o.marketplace && MP_BADGE[o.marketplace]
       ? `<span class="badge ${MP_BADGE[o.marketplace][0]}">${MP_BADGE[o.marketplace][1]}</span>` : '';
+    const fuLabel = (() => {
+      const fc = o._fuCount || 0;
+      if (fc >= 4) return '<span class="badge badge-danger">🚨 FU 3 Terkirim</span>';
+      if (fc >= 3) return '<span class="badge badge-warning">🔔 FU 2 Terkirim</span>';
+      if (fc >= 2) return '<span class="badge badge-warning">📨 FU 1 Terkirim</span>';
+      if (fc >= 1) return '<span class="badge badge-gray">📨 FU Info</span>';
+      return '';
+    })();
     const followupBadge = stage === 'BERMASALAH' ? [
-      (o.followup_attempts || 0) > 0 ? `<span class="badge badge-warning">🔔 Percobaan ke-${o.followup_attempts}</span>` : '',
-      o.followup_responded ? `<span class="badge badge-success">✅ Sudah Direspon</span>` : '',
-      o.followup_courier_notified ? `<span class="badge badge-success">📦 Sudah Hubungi Kurir</span>` : '',
+      o.cek_sl ? `<span class="badge badge-success">✅ Cek SL</span>` : '',
+      fuLabel,
     ].join('') : '';
     const checkedAt = fmtCheckedAt(o.status_resi_updated_at);
     const checkedLabel = checkedAt
