@@ -944,7 +944,6 @@ function initTrackingPage(cfg) {
     }
   };
 
-  window.trFollowupAttempt = async () => {
   window.trToggleCekSL = async (checked) => {
     const o = st.orders.find(x => String(x.id) === String(st.modalId));
     if (!o) return;
