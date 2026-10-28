@@ -61,16 +61,12 @@ function renderTeamPage() {
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:4px 0 8px">
         ${[
           { key:'info', label:'FU Info', emoji:'⚠️', color:'var(--warning)', bg:'rgba(255,183,3,.08)',
-            when:'Langsung saat bermasalah (via webhook)',
             msg:'⚠️ *[Info] Paket Bermasalah*\\n\\nHalo [nama_cs]!\\n\\nAda paket yang perlu ditindaklanjuti:\\n\\n📦 Resi: *[resi]*\\n🚚 Ekspedisi: [ekspedisi]\\n📍 Kota: [kota]\\n❌ Kasus: [kasus]\\n\\nMohon segera follow up ke kurir ya! 🙏' },
           { key:'fu1', label:'FU 1', emoji:'📨', color:'#c06000', bg:'rgba(239,140,0,.08)',
-            when:'H+1 jam 08:00 WIB (via cron-fu.js)',
             msg:'📨 *[FU 1] Paket Bermasalah*\\n\\nHalo [nama_cs], mengingatkan:\\n\\n📦 Resi: *[resi]*\\n🚚 Ekspedisi: [ekspedisi]\\n📍 Kota: [kota]\\n❌ Kasus: [kasus]\\n\\nBelum ada update — mohon segera dikonfirmasi! 🙏' },
           { key:'fu2', label:'FU 2', emoji:'🔔', color:'#b36000', bg:'rgba(239,120,0,.08)',
-            when:'H+2 jam 08:00 WIB (via cron-fu.js)',
             msg:'🔔 *[FU 2] Pengingat Paket Bermasalah*\\n\\nHalo [nama_cs], mengingatkan kembali:\\n\\n📦 Resi: *[resi]*\\n🚚 Ekspedisi: [ekspedisi]\\n📍 Kota: [kota]\\n❌ Kasus: [kasus]\\n\\nSudah 2 hari belum ada konfirmasi — tolong segera ditindak! 🙏' },
           { key:'fu3', label:'FU 3 (Terakhir)', emoji:'🚨', color:'var(--danger)', bg:'rgba(239,35,60,.06)',
-            when:'H+3 jam 08:00 WIB (via cron-fu.js)',
             msg:'🚨 *[FU 3 - Terakhir] Paket Bermasalah*\\n\\nHalo [nama_cs], ini follow up terakhir:\\n\\n📦 Resi: *[resi]*\\n🚚 Ekspedisi: [ekspedisi]\\n📍 Kota: [kota]\\n❌ Kasus: [kasus]\\n\\nHarap konfirmasi hari ini ya! 🙏' },
         ].map(t => `
           <div style="border:1px solid var(--border);border-radius:12px;padding:14px;background:${t.bg}">
@@ -81,7 +77,6 @@ function renderTeamPage() {
                 📋 Copy
               </button>
             </div>
-            <div style="font-size:.68rem;color:var(--text-3);margin-bottom:8px">⏰ ${t.when}</div>
             <pre style="font-size:.72rem;line-height:1.55;color:var(--text-2);background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin:0;white-space:pre-wrap;word-break:break-word;max-height:150px;overflow-y:auto">${t.msg.replace(/\\n/g,'\\n')}</pre>
           </div>
         `).join('')}
