@@ -161,6 +161,8 @@ function initTrackingPage(cfg) {
     subFilter: null,      // sub-filter aktif saat ON_PROSES_GROUP, misal 'DIKIRIM'
     masalahFilter: null,  // sub-filter aktif saat BERMASALAH, misal 'ALAMAT_SALAH'
     agingFilter: null,    // sub-filter aging BERMASALAH, misal 'H1','H2','H3','H4+'
+    cekSlFilter: false,   // filter hanya yang sudah cek SL
+    belumJawabFilter: false, // filter hanya yang belum dijawab CS (cs_responded=false)
     modalId: null,
     mpFilter: '',
     storeFilter: '',
@@ -595,7 +597,18 @@ function initTrackingPage(cfg) {
       return `<div class="tr-tab ${isActive ? 'active' : ''}" onclick="trClickAgingSub('${b.key}')">${b.icon} ${b.label} <span style="font-weight:700">${count}</span></div>`;
     });
 
-    el.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;padding:6px 0 10px">${items.join('')}</div>`;
+    const cekSlCount      = bermasalahOrders.filter(o => o.cek_sl).length;
+    const belumJawabCount = bermasalahOrders.filter(o => (o._fuCount || 0) >= 1 && !o._csResponded).length;
+    const sepStyle  = 'align-self:center;width:1px;height:18px;background:var(--border);margin:0 2px';
+    const cekSlStyle     = st.cekSlFilter     ? '' : 'border-color:var(--success,#06C270);color:var(--success,#06C270)';
+    const belumJawabStyle = st.belumJawabFilter ? '' : 'border-color:var(--danger,#EF233C);color:var(--danger,#EF233C)';
+    const extraItems = [
+      `<div style="${sepStyle}"></div>`,
+      `<div class="tr-tab ${st.cekSlFilter ? 'active' : ''}" onclick="trClickCekSlFilter()" style="${cekSlStyle}">✅ Cek SL <span style="font-weight:700">${cekSlCount}</span></div>`,
+      `<div class="tr-tab ${st.belumJawabFilter ? 'active' : ''}" onclick="trClickBelumJawabFilter()" style="${belumJawabStyle}">❌ Belum Dijawab CS <span style="font-weight:700">${belumJawabCount}</span></div>`,
+    ];
+
+    el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0 10px">${[...items, ...extraItems].join('')}</div>`;
   }
 
   window.trSetFilter = (key) => {
@@ -603,6 +616,8 @@ function initTrackingPage(cfg) {
     st.subFilter = null;
     st.masalahFilter = null;
     st.agingFilter = null;
+    st.cekSlFilter = false;
+    st.belumJawabFilter = false;
     st.page = 1;
     renderTabs();
     applyFilter();
@@ -617,6 +632,18 @@ function initTrackingPage(cfg) {
   };
   window.trClickAgingSub = (key) => {
     st.agingFilter = st.agingFilter === key ? null : key;
+    st.page = 1;
+    renderAgingSubFilter();
+    applyFilter();
+  };
+  window.trClickCekSlFilter = () => {
+    st.cekSlFilter = !st.cekSlFilter;
+    st.page = 1;
+    renderAgingSubFilter();
+    applyFilter();
+  };
+  window.trClickBelumJawabFilter = () => {
+    st.belumJawabFilter = !st.belumJawabFilter;
     st.page = 1;
     renderAgingSubFilter();
     applyFilter();
@@ -704,6 +731,12 @@ function initTrackingPage(cfg) {
       if (st.filterStage === 'BERMASALAH' && st.agingFilter) {
         const bucket = AGING_BUCKETS.find(b => b.key === st.agingFilter);
         if (bucket && !bucket.test(getAging(o) || 0)) return false;
+      }
+      // Filter Cek SL
+      if (st.filterStage === 'BERMASALAH' && st.cekSlFilter && !o.cek_sl) return false;
+      // Filter Belum Dijawab CS
+      if (st.filterStage === 'BERMASALAH' && st.belumJawabFilter) {
+        if (!((o._fuCount || 0) >= 1 && !o._csResponded)) return false;
       }
       return true;
     });
