@@ -978,7 +978,10 @@ function initTrackingPage(cfg) {
     const runOnce = async () => {
       round++;
       btn.textContent = `📡 Sync... (${totalUpdated} updated)`;
-      const r = await fetch('/api/run-check', { method: 'GET' });
+      const params = new URLSearchParams();
+      if (st.dateFrom) params.set('from', st.dateFrom);
+      if (st.dateTo)   params.set('to',   st.dateTo);
+      const r = await fetch('/api/run-check?' + params.toString(), { method: 'GET' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     };
