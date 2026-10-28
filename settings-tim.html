@@ -28,29 +28,61 @@ const FU_DEFAULTS = {
   fu3:  `🚨 *[FU 3 - Terakhir] Paket Bermasalah*\n\nHalo [nama_cs], ini follow up terakhir:\n\n👤 Customer: [nama_customer] ([hp_customer])\n📦 Produk: [produk]\n🔢 Resi: *[resi]*\n🚚 Ekspedisi: [ekspedisi]\n📍 Kota: [kota]\n❌ Kasus: [kasus]\n\nHarap konfirmasi hari ini ya! 🙏`,
 };
 
-function fuLoadTemplates() {
-  for (const key of Object.keys(FU_DEFAULTS)) {
-    const el = document.getElementById('fu-tpl-' + key);
-    if (!el) continue;
-    el.value = localStorage.getItem('fu_tpl_' + key) || FU_DEFAULTS[key];
-    el.style.height = 'auto';
-    el.style.height = el.scrollHeight + 'px';
+async function fuLoadTemplates() {
+  // Load dari Supabase, fallback ke default
+  try {
+    const { data } = await _sb.from('settings')
+      .select('key,value')
+      .in('key', ['fu_template_info','fu_template_fu1','fu_template_fu2','fu_template_fu3']);
+    const map = {};
+    (data || []).forEach(r => { map[r.key] = r.value; });
+    const keyMap = { info: 'fu_template_info', fu1: 'fu_template_fu1', fu2: 'fu_template_fu2', fu3: 'fu_template_fu3' };
+    for (const [k, sbKey] of Object.entries(keyMap)) {
+      const el = document.getElementById('fu-tpl-' + k);
+      if (!el) continue;
+      el.value = map[sbKey] || FU_DEFAULTS[k];
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
+  } catch {
+    // Fallback ke default kalau Supabase gagal
+    for (const key of Object.keys(FU_DEFAULTS)) {
+      const el = document.getElementById('fu-tpl-' + key);
+      if (!el) continue;
+      el.value = FU_DEFAULTS[key];
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
   }
 }
 
-function fuSave(key) {
+async function fuSave(key) {
   const el = document.getElementById('fu-tpl-' + key);
   if (!el) return;
-  localStorage.setItem('fu_tpl_' + key, el.value);
+  const btn = document.getElementById('fu-save-' + key);
+  if (btn) { btn.textContent = '⏳...'; btn.disabled = true; }
+  const sbKey = { info: 'fu_template_info', fu1: 'fu_template_fu1', fu2: 'fu_template_fu2', fu3: 'fu_template_fu3' }[key];
   const labels = { info: 'FU Info', fu1: 'FU 1', fu2: 'FU 2', fu3: 'FU 3' };
-  showToast(`Template ${labels[key] || key} berhasil disimpan`, 'success');
+  try {
+    const { error } = await _sb.from('settings')
+      .upsert({ key: sbKey, value: el.value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    if (error) throw error;
+    showToast(`Template ${labels[key]} berhasil disimpan`, 'success');
+  } catch(e) {
+    showToast(`Gagal simpan: ${e.message}`, 'error');
+  } finally {
+    if (btn) { btn.textContent = 'Simpan'; btn.disabled = false; }
+  }
 }
 
-function fuReset(key) {
+async function fuReset(key) {
   if (!confirm('Reset template ini ke default?')) return;
-  localStorage.removeItem('fu_tpl_' + key);
   const el = document.getElementById('fu-tpl-' + key);
-  if (el) { el.value = FU_DEFAULTS[key]; el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+  if (!el) return;
+  el.value = FU_DEFAULTS[key];
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+  await fuSave(key);
 }
 
 const TIM_TABS = [
