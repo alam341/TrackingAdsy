@@ -216,7 +216,7 @@
 let _rwData   = [];
 let _rwTab    = 'aktif';
 let _rwSearch = '';
-let _rwCS     = '';
+let _rwCS     = new Set(); // multi-select
 let _rwEksp   = '';
 const _now = new Date();
 let _rwBulan  = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
@@ -281,7 +281,16 @@ function rwRenderPage() {
     <div class="rw-topbar">
       <input type="text" class="rw-search" id="rwSearch" placeholder="🔍 Cari resi / nama / CS..."
         oninput="rwSetSearch(this.value)">
-      <select class="rw-select" id="rwCSSel"   onchange="rwSetCS(this.value)"><option value="">Semua CS</option></select>
+      <div style="position:relative" id="rwCSWrap">
+        <button class="rw-select" id="rwCSBtn" onclick="rwToggleCSDropdown(event)"
+          style="cursor:pointer;text-align:left;display:flex;align-items:center;gap:6px;min-width:140px">
+          <span id="rwCSLabel">Semua CS</span><span style="margin-left:auto;font-size:.65rem">▾</span>
+        </button>
+        <div id="rwCSDropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:200;
+          background:var(--card);border:1px solid var(--border);border-radius:10px;
+          box-shadow:0 4px 20px rgba(0,0,0,.12);min-width:200px;max-height:260px;overflow-y:auto;padding:6px 0">
+        </div>
+      </div>
       <select class="rw-select" id="rwEkspSel" onchange="rwSetEksp(this.value)"><option value="">Semua Ekspedisi</option></select>
       <select class="rw-select" id="rwBulanSel" onchange="rwSetBulan(this.value)"><option value="">Semua Bulan</option></select>
       <button class="rw-refresh" onclick="rwLoad()">🔄 Refresh</button>
@@ -297,9 +306,26 @@ function rwRender() {
   const csSet   = [...new Set(_rwData.map(o => o.cs_nama).filter(Boolean))].sort();
   const ekspSet = [...new Set(_rwData.map(o => o.ekspedisi).filter(Boolean))].sort();
 
-  const selCS = document.getElementById('rwCSSel');
-  if (selCS) selCS.innerHTML = `<option value="">Semua CS</option>` +
-    csSet.map(c => `<option value="${escapeHtml(c)}" ${_rwCS===c?'selected':''}>${escapeHtml(c)}</option>`).join('');
+  const csDropdown = document.getElementById('rwCSDropdown');
+  if (csDropdown) {
+    csDropdown.innerHTML = `
+      <div style="padding:6px 12px 4px;display:flex;gap:8px">
+        <span onclick="rwCSSelectAll()" style="font-size:.72rem;color:var(--primary);cursor:pointer;font-weight:600">Pilih Semua</span>
+        <span style="color:var(--border)">|</span>
+        <span onclick="rwCSClearAll()" style="font-size:.72rem;color:var(--text-3);cursor:pointer">Reset</span>
+      </div>
+      <div style="height:1px;background:var(--border);margin:4px 0"></div>
+      ${csSet.map(c => `
+        <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:.8rem;
+          transition:background .1s" onmouseover="this.style.background='rgba(67,97,238,.06)'" onmouseout="this.style.background=''">
+          <input type="checkbox" value="${escapeHtml(c)}" ${_rwCS.has(c)?'checked':''}
+            onchange="rwToggleCS(this.value,this.checked)"
+            style="accent-color:var(--primary);width:14px;height:14px;cursor:pointer">
+          <span>${escapeHtml(c)}</span>
+        </label>`).join('')}
+    `;
+  }
+  rwUpdateCSLabel();
 
   const selEksp = document.getElementById('rwEkspSel');
   if (selEksp) selEksp.innerHTML = `<option value="">Semua Ekspedisi</option>` +
@@ -325,7 +351,7 @@ function rwRender() {
       const src = o.order_date || o.created_at;
       if (!src || String(src).slice(0, 7) !== _rwBulan) return false;
     }
-    if (_rwCS   && o.cs_nama   !== _rwCS)   return false;
+    if (_rwCS.size && !_rwCS.has(o.cs_nama)) return false;
     if (_rwEksp && o.ekspedisi !== _rwEksp) return false;
     return true;
   });
@@ -415,7 +441,7 @@ function rwGetTabRows() {
       (o.cs_nama      || '').toLowerCase().includes(q)
     );
   }
-  if (_rwCS)   rows = rows.filter(o => o.cs_nama   === _rwCS);
+  if (_rwCS.size) rows = rows.filter(o => _rwCS.has(o.cs_nama));
   if (_rwEksp) rows = rows.filter(o => o.ekspedisi === _rwEksp);
   if (_rwBulan) rows = rows.filter(o => {
     const src = o.order_date || o.created_at;
@@ -556,8 +582,44 @@ async function rwAksi(id, field) {
 // ── Event handlers ─────────────────────────────────────────────────────────────
 function rwSetTab(key)    { _rwTab = key; _rwPage = 1; rwRender(); }
 function rwSetSearch(val) { _rwSearch = val; _rwPage = 1; rwRenderTable(); }
-function rwSetCS(val)     { _rwCS = val;   _rwPage = 1; rwRender(); }
 function rwSetEksp(val)   { _rwEksp = val; _rwPage = 1; rwRender(); }
+
+// ── CS multi-select ────────────────────────────────────────────────────────────
+function rwToggleCSDropdown(e) {
+  e.stopPropagation();
+  const dd = document.getElementById('rwCSDropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+function rwToggleCS(val, checked) {
+  checked ? _rwCS.add(val) : _rwCS.delete(val);
+  rwUpdateCSLabel();
+  _rwPage = 1;
+  rwRender();
+}
+function rwCSSelectAll() {
+  document.querySelectorAll('#rwCSDropdown input[type=checkbox]').forEach(cb => {
+    cb.checked = true; _rwCS.add(cb.value);
+  });
+  rwUpdateCSLabel(); _rwPage = 1; rwRenderTable();
+}
+function rwCSClearAll() {
+  _rwCS.clear();
+  document.querySelectorAll('#rwCSDropdown input[type=checkbox]').forEach(cb => cb.checked = false);
+  rwUpdateCSLabel(); _rwPage = 1; rwRenderTable();
+}
+function rwUpdateCSLabel() {
+  const el = document.getElementById('rwCSLabel');
+  if (!el) return;
+  el.textContent = _rwCS.size === 0 ? 'Semua CS' : `${_rwCS.size} CS dipilih`;
+  el.style.color = _rwCS.size > 0 ? 'var(--primary)' : '';
+}
+// Tutup dropdown kalau klik di luar
+document.addEventListener('click', e => {
+  if (!document.getElementById('rwCSWrap')?.contains(e.target)) {
+    const dd = document.getElementById('rwCSDropdown');
+    if (dd) dd.style.display = 'none';
+  }
+});
 function rwSetBulan(val)  { _rwBulan = val; _rwPage = 1; rwRender(); }
 function rwGoPage(p)      { _rwPage = p; rwRenderTable(); document.getElementById('rwTable')?.scrollIntoView({ behavior:'smooth', block:'start' }); }
 
