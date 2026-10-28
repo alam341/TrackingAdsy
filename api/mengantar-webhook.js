@@ -14,7 +14,6 @@ const { checkResiAuto } = require('../lib/tracking-router');
 
 // Matikan body parser bawaan Vercel — kita butuh raw body untuk verifikasi HMAC
 // (parse ulang JSON → bytes beda → signature tidak cocok)
-module.exports.config = { api: { bodyParser: false } };
 
 // ── Stage mapping dari status_category Mengantar ke stage internal ────────────
 const STATUS_MAP = {
@@ -260,3 +259,5 @@ module.exports = async function handler(req, res) {
     res.status(500).json({ error: e.message });
   }
 };
+
+module.exports.config = { api: { bodyParser: false } };
