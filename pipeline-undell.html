@@ -342,15 +342,6 @@ async function init() {
   document.getElementById('pl-month').value =
     `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 
-  // Load SKU produk untuk dropdown filter
-  const skuMap = await dbGetSkuMap().catch(() => new Map());
-  const skuProducts = [...skuMap.values()].sort();
-  const sel = document.getElementById('pl-produk');
-  if (sel) {
-    sel.innerHTML = `<option value="">Semua Produk</option>` +
-      skuProducts.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
-  }
-
   renderLayout('pipeline-undell', authUser);
   await loadPipeline();
 }
@@ -392,8 +383,9 @@ function getCol(row) {
   return 'fu_info';
 }
 
-// ── Rebuild CS dropdown setelah data load ────────────────────────────────
+// ── Rebuild CS + Produk dropdown dari data yang ter-load ─────────────────
 function rebuildCSDropdown() {
+  // CS dropdown
   const csSet = [...new Set(allData.map(r => r.cs_nama).filter(Boolean))].sort();
   const dd = document.getElementById('plCSDD');
   if (dd) {
@@ -412,6 +404,15 @@ function rebuildCSDropdown() {
             style="accent-color:var(--primary);width:14px;height:14px;cursor:pointer">
           <span>${escapeHtml(c)}</span>
         </label>`).join('')}`;
+  }
+  // Produk dropdown — hanya yang ada di data bulan ini, nama bersih
+  const produkSet = [...new Set(allData.map(r => cleanProduk(r.produk)).filter(Boolean))].sort();
+  const sel = document.getElementById('pl-produk');
+  if (sel) {
+    const prev = sel.value;
+    sel.innerHTML = `<option value="">Semua Produk</option>` +
+      produkSet.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+    sel.value = produkSet.includes(prev) ? prev : '';
   }
 }
 
