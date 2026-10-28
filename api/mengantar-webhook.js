@@ -199,9 +199,14 @@ module.exports = async function handler(req, res) {
     console.log(`[webhook] ${cnote_no} → ${stage} (${status_category})`);
 
     // 7b. Fetch detail tracking dari API kurir — dapat masalah_kategori + records
+    // Untuk LION dengan UNDELIVERED: Mengantar push UNDELIVERED saat kurir baru mau antar
+    // (false alarm), bukan hanya saat gagal. Yang jadi sinyal gagal beneran adalah kode DEX
+    // di history (group === 'UNDELIVERED' di entry history). Kalau tidak ada → bukan gagal.
     let masalahKategori = '';
+    let apiStage = null;
     try {
-      const { detail } = await checkResiAuto({ id: cnote_no, ekspedisi: normCourier(courier), kota_tujuan: '' });
+      const { stage: fetchedStage, detail } = await checkResiAuto({ id: cnote_no, ekspedisi: normCourier(courier), kota_tujuan: '' });
+      apiStage = fetchedStage || null;
       if (detail) {
         masalahKategori = detail.masalah_kategori || '';
         const existingDetail = existing?.status_resi_detail || {};
@@ -224,15 +229,30 @@ module.exports = async function handler(req, res) {
     }
 
     // 8. Masukkan ke Room Work + kirim FU Info kalau baru jadi BERMASALAH
+    // LION: skip room_work kalau API tidak konfirmasi BERMASALAH (tidak ada DEX di history).
+    // Koreksi juga status di DB kalau API bilang bukan BERMASALAH (false alarm webhook).
     if (stage === 'BERMASALAH' && existing?.status_resi !== 'BERMASALAH') {
-      await insertRoomWork({
-        resi:      cnote_no,
-        csNama:    existing?.cs_nama     || '',
-        kota:      existing?.kota_tujuan || '',
-        ekspedisi: normCourier(courier)  || '',
-        caseUndel: masalahKategori       || status_category || '',
-        orderDate: existing?.order_date  || null,
-      }).catch(e => console.error('[room-work] Gagal insert:', e.message));
+      const isLion = normCourier(courier) === 'LION';
+      const isLionFalseAlarm = isLion && !masalahKategori && apiStage && apiStage !== 'BERMASALAH';
+      if (isLionFalseAlarm) {
+        console.log(`[webhook] ${cnote_no} LION false alarm (webhook: ${status_category}, API: ${apiStage}) — koreksi ke ${apiStage}, skip room_work`);
+        await sbFetch(`akuisisi_orders?id=eq.${encodeURIComponent(cnote_no)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            status_resi:      apiStage,
+            status_resi_step: STAGE_STEP[apiStage] || 2,
+          }),
+        }).catch(e => console.warn('[webhook] Koreksi LION stage gagal:', e.message));
+      } else {
+        await insertRoomWork({
+          resi:      cnote_no,
+          csNama:    existing?.cs_nama     || '',
+          kota:      existing?.kota_tujuan || '',
+          ekspedisi: normCourier(courier)  || '',
+          caseUndel: masalahKategori       || status_category || '',
+          orderDate: existing?.order_date  || null,
+        }).catch(e => console.error('[room-work] Gagal insert:', e.message));
+      }
     }
 
     // 9. Auto resolve room_work kalau paket SAMPAI (berhasil terkirim setelah sempat bermasalah)
