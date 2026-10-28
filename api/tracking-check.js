@@ -52,6 +52,12 @@ module.exports = async function handler(req, res) {
       row = { id, ekspedisi, kota_tujuan: '' };
     }
 
+    // 3. Override ekspedisi kalau format resi lebih reliable (misal stored JNE tapi resi SPXID)
+    const detectedEksp = detectEkspedisi(id);
+    if (detectedEksp && detectedEksp !== row.ekspedisi) {
+      row.ekspedisi = detectedEksp;
+    }
+
     if (!row.ekspedisi) {
       res.status(400).json({ error: 'Ekspedisi belum diketahui buat order ini' });
       return;
