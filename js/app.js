@@ -89,6 +89,9 @@ function renderLayout(activePage, user, products = []) {
         <a href="room-work.html" class="nav-item ${activePage === 'room-work' ? 'active' : ''}">
           <span class="nav-icon">${ICON_TRACKING}</span><span>Room Work</span>
         </a>
+        <a href="pipeline-undell.html" class="nav-item ${activePage === 'pipeline-undell' ? 'active' : ''}">
+          <span class="nav-icon">${ICON_ALERT}</span><span>Pipeline Undell</span>
+        </a>
         <a href="rekap-laporan.html" class="nav-item ${activePage === 'rekap-laporan' ? 'active' : ''}">
           <span class="nav-icon">${ICON_CHART}</span><span>Rekap Laporan</span>
         </a>
