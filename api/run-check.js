@@ -28,9 +28,9 @@ module.exports = async function handler(req, res) {
   let checked = 0, updated = 0, failed = 0, roomWorkAdded = 0;
   const errors = [];
 
-  // Query param opsional: ?from=2026-10-01&only_unchecked=1
-  const fromDate     = req.query?.from || null;
-  const onlyUnchecked = req.query?.only_unchecked === '1';
+  // Query param opsional: ?from=2026-10-01&to=2026-10-31
+  const fromDate = req.query?.from || null;
+  const toDate   = req.query?.to   || null;
 
   // Ambil resi aktif -- urut dari paling lama dicek supaya tiap run "gantian"
   let rows;
@@ -44,14 +44,12 @@ module.exports = async function handler(req, res) {
       `&order=status_resi_updated_at.asc.nullsfirst` +
       `&limit=${ROWS_PER_RUN}`;
 
-    if (fromDate) {
+    if (fromDate && toDate) {
+      query += `&order_date=gte.${fromDate}&order_date=lte.${toDate}`;
+    } else if (fromDate) {
       query += `&order_date=gte.${fromDate}`;
     } else {
       query += `&or=(order_date.gte.2026-09-01,order_date.is.null)`;
-    }
-
-    if (onlyUnchecked) {
-      query += `&status_resi=eq.BELUM_DICEK&status_resi_updated_at=is.null`;
     }
 
     rows = await sbFetch(query);
