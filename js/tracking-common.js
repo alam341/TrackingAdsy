@@ -876,17 +876,13 @@ function initTrackingPage(cfg) {
       }).join('')}</div>`;
     }
     const followupHtml = stage === 'BERMASALAH' ? `
-      <div style="margin-top:16px;padding:12px;border-radius:10px;background:var(--bg-2,rgba(0,0,0,.03))">
-        <div style="font-weight:700;font-size:.8rem;margin-bottom:10px">📋 Follow Up Bermasalah</div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-          <span style="font-size:.8rem">Percobaan info CS: <strong id="trFollowupCount">${o.followup_attempts || 0}/3</strong></span>
-          <button class="btn btn-outline btn-sm" id="trFollowupAttemptBtn" onclick="trFollowupAttempt()" ${(o.followup_attempts || 0) >= 3 ? 'disabled' : ''}>+ Catat Percobaan</button>
-        </div>
-        <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;margin-bottom:6px;cursor:pointer">
-          <input type="checkbox" ${o.followup_responded ? 'checked' : ''} onchange="trFollowupToggle('followup_responded', this.checked)"> Sudah Direspon CS
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:.82rem;cursor:pointer">
-          <input type="checkbox" ${o.followup_courier_notified ? 'checked' : ''} onchange="trFollowupToggle('followup_courier_notified', this.checked)"> Sudah Diinfo ke Kurir
+      <div style="margin-top:16px;padding:12px 14px;border-radius:10px;background:var(--bg-2,rgba(0,0,0,.03));border:1px solid var(--border)">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" id="trCekSLCheck" ${o.cek_sl ? 'checked' : ''}
+            onchange="trToggleCekSL(this.checked)"
+            style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;flex-shrink:0">
+          <span style="font-size:.85rem;font-weight:600">Sudah dicek SL</span>
+          ${o.cek_sl ? `<span style="font-size:.72rem;color:var(--success);font-weight:600">✅ Sudah</span>` : `<span style="font-size:.72rem;color:var(--text-3)">Belum</span>`}
         </label>
       </div>
     ` : '';
@@ -949,28 +945,20 @@ function initTrackingPage(cfg) {
   };
 
   window.trFollowupAttempt = async () => {
-    const o = st.orders.find(x => String(x.id) === String(st.modalId));
-    if (!o) return;
-    const next = Math.min(3, (o.followup_attempts || 0) + 1);
-    try {
-      await dbUpdateFollowup(cfg.table, o.id, { followup_attempts: next });
-      o.followup_attempts = next;
-      document.getElementById('trFollowupCount').textContent = `${next}/3`;
-      if (next >= 3) document.getElementById('trFollowupAttemptBtn').disabled = true;
-      applyFilter();
-      showToast(`✅ Percobaan ke-${next} dicatat`, 'success');
-    } catch (e) {
-      showToast('❌ ' + e.message, 'error');
-    }
-  };
-
-  window.trFollowupToggle = async (field, checked) => {
+  window.trToggleCekSL = async (checked) => {
     const o = st.orders.find(x => String(x.id) === String(st.modalId));
     if (!o) return;
     try {
-      await dbUpdateFollowup(cfg.table, o.id, { [field]: checked });
-      o[field] = checked;
+      await dbUpdateFollowup(cfg.table, o.id, { cek_sl: checked });
+      o.cek_sl = checked;
+      // Update label langsung tanpa tutup modal
+      const lbl = document.getElementById('trCekSLCheck')?.parentElement?.querySelector('span:last-child');
+      if (lbl) {
+        lbl.textContent = checked ? '✅ Sudah' : 'Belum';
+        lbl.style.color = checked ? 'var(--success)' : 'var(--text-3)';
+      }
       applyFilter();
+      showToast(checked ? '✅ Sudah dicek SL' : 'Cek SL dibatalkan', 'success');
     } catch (e) {
       showToast('❌ ' + e.message, 'error');
     }
