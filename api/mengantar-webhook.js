@@ -27,6 +27,8 @@ const STATUS_MAP = {
   'IN TRANSIT':             'DIKIRIM',
   'WITH DELIVERY COURIER':  'OTW',
   'ON DELIVERY':            'OTW',
+  'DEL':                    'OTW',
+  'OUT FOR DELIVERY':       'OTW',
   'DELIVERED':              'SAMPAI',
   'UNDELIVERED':            'BERMASALAH',
   'PICKUP FAILED':          'BERMASALAH',
