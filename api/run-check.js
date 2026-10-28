@@ -28,19 +28,33 @@ module.exports = async function handler(req, res) {
   let checked = 0, updated = 0, failed = 0, roomWorkAdded = 0;
   const errors = [];
 
+  // Query param opsional: ?from=2026-10-01&only_unchecked=1
+  const fromDate     = req.query?.from || null;
+  const onlyUnchecked = req.query?.only_unchecked === '1';
+
   // Ambil resi aktif -- urut dari paling lama dicek supaya tiap run "gantian"
   let rows;
   try {
-    rows = await sbFetch(
+    let query =
       `akuisisi_orders` +
       `?select=id,ekspedisi,status_resi,status_resi_detail,order_date` +
       `&ekspedisi=in.(${ekspedisiFilter})` +
       `&status_resi=not.in.(SAMPAI,RETUR,MANUAL_CEK)` +
       `&id=not.like.IMP-*` +
-      `&or=(order_date.gte.2026-09-01,order_date.is.null)` +
       `&order=status_resi_updated_at.asc.nullsfirst` +
-      `&limit=${ROWS_PER_RUN}`
-    );
+      `&limit=${ROWS_PER_RUN}`;
+
+    if (fromDate) {
+      query += `&order_date=gte.${fromDate}`;
+    } else {
+      query += `&or=(order_date.gte.2026-09-01,order_date.is.null)`;
+    }
+
+    if (onlyUnchecked) {
+      query += `&status_resi=eq.BELUM_DICEK&status_resi_updated_at=is.null`;
+    }
+
+    rows = await sbFetch(query);
   } catch (e) {
     return res.status(500).json({ error: 'Gagal fetch akuisisi_orders: ' + e.message });
   }
