@@ -21,13 +21,20 @@ const STATUS_MAP = {
   'WAITING NEXT PROCESS':   'DIKIRIM',
   'PENDING PICKUP':         'DIKIRIM',
   'PICKED UP':              'DIKIRIM',
+  'MANIFESTED':             'DIKIRIM',
+  'INBOUND PROCESS':        'DIKIRIM',
+  'OUTBOUND PROCESS':       'DIKIRIM',
+  'IN TRANSIT':             'DIKIRIM',
+  'WITH DELIVERY COURIER':  'OTW',
   'ON DELIVERY':            'OTW',
   'DELIVERED':              'SAMPAI',
   'UNDELIVERED':            'BERMASALAH',
   'PICKUP FAILED':          'BERMASALAH',
+  'REJECTED':               'BERMASALAH',
   'RTS':                    'RETUR',
+  'RETURN TO SHIPPER':      'RETUR',
   'CANCELED':               'RETUR',
-  'CANCELLED':              'RETUR',   // Mengantar kirim dua ejaan — handle keduanya
+  'CANCELLED':              'RETUR',
   'ERROR':                  'BELUM_DICEK',
 };
 
