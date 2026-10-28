@@ -166,7 +166,7 @@ function initTrackingPage(cfg) {
     storeFilter: '',
     storeOptions: [],
     ekspedisiFilter: '',
-    csFilter: '',
+    csFilter: new Set(),
     produkFilter: cfg.initialProdukFilter || '',
     page: 1,
     pageSize: 50,
@@ -352,10 +352,31 @@ function initTrackingPage(cfg) {
               ${ekspedisiOptions().map(e => `<option value="${escapeHtml(e)}" ${st.ekspedisiFilter===e?'selected':''}>${escapeHtml(e)}</option>`).join('')}
             </select>
             ${!cfg.hasMarketplaceFilter ? `
-              <select class="ctrl-select" id="trCsFilter" onchange="trSetCsFilter(this.value)">
-                <option value="">Semua CS</option>
-                ${csOptions().map(c => `<option value="${escapeHtml(c)}" ${st.csFilter===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}
-              </select>
+              <div style="position:relative" id="trCSWrap">
+                <button class="ctrl-select" id="trCSBtn" onclick="trToggleCSDropdown(event)"
+                  style="cursor:pointer;text-align:left;display:flex;align-items:center;gap:6px;min-width:130px">
+                  <span id="trCSLabel">${st.csFilter.size ? st.csFilter.size + ' CS dipilih' : 'Semua CS'}</span>
+                  <span style="margin-left:auto;font-size:.65rem">▾</span>
+                </button>
+                <div id="trCSDropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:200;
+                  background:var(--card);border:1px solid var(--border);border-radius:10px;
+                  box-shadow:0 4px 20px rgba(0,0,0,.12);min-width:200px;max-height:260px;overflow-y:auto;padding:6px 0">
+                  <div style="padding:6px 12px 4px;display:flex;gap:8px">
+                    <span onclick="trCSSelectAll()" style="font-size:.72rem;color:var(--primary);cursor:pointer;font-weight:600">Pilih Semua</span>
+                    <span style="color:var(--border)">|</span>
+                    <span onclick="trCSClearAll()" style="font-size:.72rem;color:var(--text-3);cursor:pointer">Reset</span>
+                  </div>
+                  <div style="height:1px;background:var(--border);margin:4px 0"></div>
+                  ${csOptions().map(c => `
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:.8rem"
+                      onmouseover="this.style.background='rgba(67,97,238,.06)'" onmouseout="this.style.background=''">
+                      <input type="checkbox" value="${escapeHtml(c)}" ${st.csFilter.has(c)?'checked':''}
+                        onchange="trToggleCS(this.value,this.checked)"
+                        style="accent-color:var(--primary);width:14px;height:14px;cursor:pointer">
+                      <span>${escapeHtml(c)}</span>
+                    </label>`).join('')}
+                </div>
+              </div>
               <select class="ctrl-select" id="trProdukFilter" onchange="trSetProdukFilter(this.value)">
                 <option value="">Semua Produk</option>
                 ${produkOptions().map(p => `<option value="${escapeHtml(p)}" ${st.produkFilter===p?'selected':''}>${escapeHtml(p)}</option>`).join('')}
@@ -485,7 +506,7 @@ function initTrackingPage(cfg) {
     const bermasalahOrders = st.orders.filter(o => {
       if (st.storeFilter && o.store_name !== st.storeFilter) return false;
       if (st.ekspedisiFilter && o.ekspedisi !== st.ekspedisiFilter) return false;
-      if (st.csFilter && o.cs_nama !== st.csFilter) return false;
+      if (st.csFilter.size && !st.csFilter.has(o.cs_nama)) return false;
       if (st.produkFilter && (o.produk || '').split(' + ')[0].trim() !== st.produkFilter) return false;
       if (q && !(String(o.id).toLowerCase().includes(q) || (o.nama||o.buyer||'').toLowerCase().includes(q) || (o.produk||'').toLowerCase().includes(q))) return false;
       return trEffectiveStage(o) === 'BERMASALAH';
@@ -533,7 +554,7 @@ function initTrackingPage(cfg) {
     const bermasalahOrders = st.orders.filter(o => {
       if (st.storeFilter && o.store_name !== st.storeFilter) return false;
       if (st.ekspedisiFilter && o.ekspedisi !== st.ekspedisiFilter) return false;
-      if (st.csFilter && o.cs_nama !== st.csFilter) return false;
+      if (st.csFilter.size && !st.csFilter.has(o.cs_nama)) return false;
       if (st.produkFilter && (o.produk || '').split(' + ')[0].trim() !== st.produkFilter) return false;
       if (q && !(String(o.id).toLowerCase().includes(q) || (o.nama||o.buyer||'').toLowerCase().includes(q) || (o.produk||'').toLowerCase().includes(q))) return false;
       if (st.masalahFilter && (o.masalah_kategori || 'LAINNYA') !== st.masalahFilter) return false;
@@ -592,7 +613,37 @@ function initTrackingPage(cfg) {
   window.trSetMpFilter = (val) => { st.mpFilter = val; st.storeFilter = ''; st.page = 1; load(); };
   window.trSetStoreFilter = (val) => { st.storeFilter = val; st.page = 1; applyFilter(); };
   window.trSetEkspedisiFilter = (val) => { st.ekspedisiFilter = val; st.page = 1; applyFilter(); };
-  window.trSetCsFilter = (val) => { st.csFilter = val; st.page = 1; applyFilter(); };
+  window.trToggleCSDropdown = (e) => {
+    e.stopPropagation();
+    const dd = document.getElementById('trCSDropdown');
+    if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+  };
+  window.trToggleCS = (val, checked) => {
+    checked ? st.csFilter.add(val) : st.csFilter.delete(val);
+    trUpdateCSLabel();
+    st.page = 1; applyFilter();
+  };
+  window.trCSSelectAll = () => {
+    document.querySelectorAll('#trCSDropdown input[type=checkbox]').forEach(cb => { cb.checked = true; st.csFilter.add(cb.value); });
+    trUpdateCSLabel(); st.page = 1; applyFilter();
+  };
+  window.trCSClearAll = () => {
+    st.csFilter.clear();
+    document.querySelectorAll('#trCSDropdown input[type=checkbox]').forEach(cb => cb.checked = false);
+    trUpdateCSLabel(); st.page = 1; applyFilter();
+  };
+  function trUpdateCSLabel() {
+    const el = document.getElementById('trCSLabel');
+    if (!el) return;
+    el.textContent = st.csFilter.size ? `${st.csFilter.size} CS dipilih` : 'Semua CS';
+    el.style.color = st.csFilter.size ? 'var(--primary)' : '';
+  }
+  document.addEventListener('click', e => {
+    if (!document.getElementById('trCSWrap')?.contains(e.target)) {
+      const dd = document.getElementById('trCSDropdown');
+      if (dd) dd.style.display = 'none';
+    }
+  });
   window.trSetProdukFilter = (val) => {
     st.produkFilter = val;
     st.page = 1;
@@ -610,7 +661,7 @@ function initTrackingPage(cfg) {
     const baseList = st.orders.filter(o => {
       if (st.storeFilter && o.store_name !== st.storeFilter) return false;
       if (st.ekspedisiFilter && o.ekspedisi !== st.ekspedisiFilter) return false;
-      if (st.csFilter && o.cs_nama !== st.csFilter) return false;
+      if (st.csFilter.size && !st.csFilter.has(o.cs_nama)) return false;
       if (st.produkFilter && (o.produk || '').split(' + ')[0].trim() !== st.produkFilter) return false;
       if (q && !(String(o.id).toLowerCase().includes(q) || (o.nama||o.buyer||'').toLowerCase().includes(q) || (o.produk||'').toLowerCase().includes(q))) return false;
       return true;
