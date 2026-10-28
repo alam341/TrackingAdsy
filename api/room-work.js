@@ -40,7 +40,7 @@ module.exports = async function handler(req, res) {
       const results = [];
       for (let i = 0; i < resiList.length; i += CHUNK) {
         const chunk = resiList.slice(i, i + CHUNK);
-        const inList = chunk.map(r => `"${String(r).replace(/"/g, '')}"`).join(',');
+        const inList = chunk.map(r => String(r)).join(',');
         const data = await sbFetch(
           `room_work?select=resi,fu_count,cs_responded&resi=in.(${inList})`
         );
