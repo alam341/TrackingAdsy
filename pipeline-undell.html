@@ -12,12 +12,12 @@
 /* ── Board layout ─────────────────────────────────────────────────────── */
 .pl-board {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 10px;
   align-items: start;
 }
-@media (max-width: 1200px) { .pl-board { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 700px)  { .pl-board { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1400px) { .pl-board { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 800px)  { .pl-board { grid-template-columns: repeat(2, 1fr); } }
 
 /* ── Column ───────────────────────────────────────────────────────────── */
 .pl-col {
@@ -62,6 +62,10 @@
 .col-bales .pl-col-cnt   { background: rgba(6,194,112,.12); color: var(--success); }
 .col-lapor .pl-col-title { color: #60a5fa; }
 .col-lapor .pl-col-cnt   { background: rgba(96,165,250,.12); color: #60a5fa; }
+.col-sampai .pl-col-title { color: var(--success); }
+.col-sampai .pl-col-cnt   { background: rgba(6,194,112,.12); color: var(--success); }
+.col-retur .pl-col-title { color: var(--text-3); }
+.col-retur .pl-col-cnt   { background: rgba(100,116,139,.1); color: var(--text-3); }
 
 /* ── Column body ──────────────────────────────────────────────────────── */
 .pl-col-body {
@@ -115,11 +119,13 @@
   font-size: 10px; font-weight: 600; padding: 1px 6px;
   border-radius: 20px; white-space: nowrap;
 }
-.ptag-eksp  { background: rgba(67,97,238,.1);  color: var(--primary); }
-.ptag-cs    { background: rgba(6,194,112,.1);   color: var(--success); }
-.ptag-fu    { background: rgba(245,158,11,.12); color: #fbbf24; }
-.ptag-kasus { background: rgba(239,68,68,.08);  color: var(--danger); }
-.ptag-hari  { background: rgba(100,116,139,.1); color: var(--text-2); }
+.ptag-eksp   { background: rgba(67,97,238,.1);  color: var(--primary); }
+.ptag-cs     { background: rgba(6,194,112,.1);   color: var(--success); }
+.ptag-fu     { background: rgba(245,158,11,.12); color: #fbbf24; }
+.ptag-kasus  { background: rgba(239,68,68,.08);  color: var(--danger); }
+.ptag-hari   { background: rgba(100,116,139,.1); color: var(--text-2); }
+.ptag-sampai { background: rgba(6,194,112,.1);   color: var(--success); }
+.ptag-retur  { background: rgba(100,116,139,.1); color: var(--text-3); }
 
 /* ── Summary bar ──────────────────────────────────────────────────────── */
 .pl-summary {
@@ -295,12 +301,14 @@
 const PAGE_SIZE = 8;
 
 const COLS = [
-  { key: 'fu_info', cls: 'col-fu-info', icon: '📨', label: 'FU Info',          sub: 'Alert pertama dikirim' },
-  { key: 'fu1',     cls: 'col-fu1',     icon: '🟡', label: 'FU 1',             sub: 'Pengingat hari ke-2' },
-  { key: 'fu2',     cls: 'col-fu2',     icon: '🟠', label: 'FU 2',             sub: 'Pengingat hari ke-3' },
-  { key: 'fu3',     cls: 'col-fu3',     icon: '🚨', label: 'FU 3 / Tdk Bales', sub: 'Alert terakhir / tidak respon' },
-  { key: 'bales',   cls: 'col-bales',   icon: '✅', label: 'CS Bales',         sub: 'CS sudah konfirmasi' },
-  { key: 'lapor',   cls: 'col-lapor',   icon: '📤', label: 'Lapor Ekspedisi',  sub: 'Sudah dilaporkan ke kurir' },
+  { key: 'fu_info', cls: 'col-fu-info', icon: '📨', label: 'FU Info',           sub: 'Alert pertama dikirim' },
+  { key: 'fu1',     cls: 'col-fu1',     icon: '🟡', label: 'FU 1',              sub: 'Pengingat hari ke-2' },
+  { key: 'fu2',     cls: 'col-fu2',     icon: '🟠', label: 'FU 2',              sub: 'Pengingat hari ke-3' },
+  { key: 'fu3',     cls: 'col-fu3',     icon: '🚨', label: 'FU 3 / Tdk Bales',  sub: 'Alert terakhir / tidak respon' },
+  { key: 'bales',   cls: 'col-bales',   icon: '✅', label: 'CS Bales',          sub: 'CS sudah konfirmasi' },
+  { key: 'lapor',   cls: 'col-lapor',   icon: '📤', label: 'Lapor Ekspedisi',   sub: 'Sudah dilaporkan ke kurir' },
+  { key: 'sampai',  cls: 'col-sampai',  icon: '🎉', label: 'Berhasil Terkirim', sub: 'Status resi: SAMPAI' },
+  { key: 'retur',   cls: 'col-retur',   icon: '↩️', label: 'Retur',            sub: 'Status resi: RETUR' },
 ];
 
 let allData      = [];
@@ -362,6 +370,9 @@ async function loadPipeline() {
 
 // ── Classify row ke kolom ─────────────────────────────────────────────────
 function getCol(row) {
+  // Status tracking terbaru menentukan kolom resolusi
+  if (row._status_resi === 'SAMPAI') return 'sampai';
+  if (row._status_resi === 'RETUR')  return 'retur';
   if (row.lapor_ekspedisi) return 'lapor';
   if (row.cs_responded)   return 'bales';
   const fu = row.fu_count || 0;
@@ -456,15 +467,17 @@ function buildAndRender() {
   // Summary
   const aktif     = cols.fu_info.length + cols.fu1.length + cols.fu2.length + cols.fu3.length;
   const tdk_bales = cols.fu3.length;
-  const bales     = cols.bales.length;
-  const lapor     = cols.lapor.length;
+  const sampai    = cols.sampai.length;
+  const retur     = cols.retur.length;
   const total     = Object.values(cols).reduce((s, c) => s + c.length, 0);
+  const resolved  = sampai + retur;
+  const rate      = resolved > 0 ? Math.round(sampai / resolved * 100) : null;
   document.getElementById('pl-summary').innerHTML = `
     <div class="pl-stat s-warn"><b>${aktif}</b><span>Aktif diproses</span></div>
     <div class="pl-stat s-danger"><b>${tdk_bales}</b><span>CS Tidak Bales</span></div>
-    <div class="pl-stat s-success"><b>${bales}</b><span>CS Bales</span></div>
-    <div class="pl-stat s-info"><b>${lapor}</b><span>Lapor Ekspedisi</span></div>
-    <div class="pl-stat"><b>${total}</b><span>Total</span></div>
+    <div class="pl-stat s-success"><b>${sampai}</b><span>Berhasil Terkirim</span></div>
+    <div class="pl-stat"><b>${retur}</b><span>Retur</span></div>
+    <div class="pl-stat s-info"><b>${rate !== null ? rate + '%' : '—'}</b><span>Success Rate</span></div>
   `;
   document.getElementById('pl-count').textContent = `${total} paket`;
   renderBoard();
@@ -524,12 +537,15 @@ function cardHtml(row) {
   const kasusTag = row.case_undel ? `<span class="ptag ptag-kasus">${escapeHtml(row.case_undel)}</span>` : '';
   const fuTag   = (row.fu_count || 0) > 0
     ? `<span class="ptag ptag-fu">FU ${row.fu_count}</span>` : '';
+  const stTag   = row._status_resi === 'SAMPAI' ? `<span class="ptag ptag-sampai">✅ Sampai</span>`
+                : row._status_resi === 'RETUR'  ? `<span class="ptag ptag-retur">↩️ Retur</span>`
+                : '';
 
   return `
     <div class="pl-card" onclick="openModal('${escapeHtml(String(row.resi))}')">
       <div class="pl-card-name">${escapeHtml(row.nama_pembeli || row.cs_nama || '-')}</div>
       <div class="pl-card-resi">${escapeHtml(row.resi || '-')}</div>
-      <div class="pl-card-tags">${ekspTag}${csTag}${kasusTag}${hariTag}${fuTag}</div>
+      <div class="pl-card-tags">${ekspTag}${csTag}${kasusTag}${stTag}${hariTag}${fuTag}</div>
       <div class="pl-card-date">${fmtDate(row.fu_info_at || row.created_at)}</div>
     </div>`;
 }
