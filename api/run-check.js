@@ -45,9 +45,9 @@ module.exports = async function handler(req, res) {
       `&limit=${ROWS_PER_RUN}`;
 
     if (fromDate && toDate) {
-      query += `&order_date=gte.${fromDate}&order_date=lte.${toDate}`;
+      query += `&or=(order_date.is.null,and(order_date.gte.${fromDate},order_date.lte.${toDate}))`;
     } else if (fromDate) {
-      query += `&order_date=gte.${fromDate}`;
+      query += `&or=(order_date.gte.${fromDate},order_date.is.null)`;
     } else {
       query += `&or=(order_date.gte.2026-09-01,order_date.is.null)`;
     }
