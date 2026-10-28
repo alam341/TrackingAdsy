@@ -975,13 +975,26 @@ function initTrackingPage(cfg) {
     btn.disabled = true;
     let totalUpdated = 0, totalFailed = 0, round = 0;
 
+    const dateParams = new URLSearchParams();
+    if (st.filterStart) dateParams.set('from', trYmd(st.filterStart));
+    if (st.filterEnd)   dateParams.set('to',   trYmd(st.filterEnd));
+
+    // Step 1: backfill dulu — insert resi baru dari CS Input ke akuisisi_orders (pakai filter tanggal)
+    try {
+      btn.textContent = '📡 Sync... (registrasi resi baru)';
+      let offset = 0, hasMore = true;
+      while (hasMore) {
+        const r = await fetch(`/api/backfill-tracking?offset=${offset}&` + dateParams.toString()).then(r => r.json());
+        hasMore = r.hasMore;
+        offset  = r.offset || (offset + 500);
+      }
+    } catch (_) { /* backfill gagal tidak fatal */ }
+
+    // Step 2: run-check tanpa filter tanggal — supaya resi order_date=null ikut ketangkap
     const runOnce = async () => {
       round++;
       btn.textContent = `📡 Sync... (${totalUpdated} updated)`;
-      const params = new URLSearchParams();
-      if (st.filterStart) params.set('from', trYmd(st.filterStart));
-      if (st.filterEnd)   params.set('to',   trYmd(st.filterEnd));
-      const r = await fetch('/api/run-check?' + params.toString(), { method: 'GET' });
+      const r = await fetch('/api/run-check', { method: 'GET' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     };
@@ -994,6 +1007,9 @@ function initTrackingPage(cfg) {
         totalFailed  += result.failed  || 0;
       } while (result.hasMore);
 
+      // Clear cache supaya tracking status terbaru langsung keliatan
+      const cacheKey = `cs_orders_${trYmd(st.filterStart)}_${trYmd(st.filterEnd)}`;
+      sessionStorage.removeItem(cacheKey);
       await load(true); // reload list tanpa spinner
       applyFilter();
       const msg = `✅ Sync selesai — ${totalUpdated} resi diupdate` +
