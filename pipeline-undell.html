@@ -316,6 +316,7 @@ let colPages     = {};
 let filteredCols = {};
 let _csFilter    = new Set();
 let _produkFilter = '';
+let _skuMap      = new Map();
 COLS.forEach(c => { colPages[c.key] = 0; filteredCols[c.key] = []; });
 
 function cleanProduk(raw) {
@@ -343,6 +344,7 @@ async function init() {
     `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 
   renderLayout('pipeline-undell', authUser);
+  try { _skuMap = await dbGetSkuMap(); } catch(e) { console.warn('[pipeline] Gagal load skuMap:', e.message); }
   await loadPipeline();
 }
 
@@ -405,8 +407,12 @@ function rebuildCSDropdown() {
           <span>${escapeHtml(c)}</span>
         </label>`).join('')}`;
   }
-  // Produk dropdown — hanya yang ada di data bulan ini, nama bersih
-  const produkSet = [...new Set(allData.map(r => cleanProduk(r.produk)).filter(Boolean))].sort();
+  // Produk dropdown — pakai nama resmi dari skuMap, hanya yang ada di data bulan ini
+  const rawNames = new Set(allData.map(r => cleanProduk(r.produk)).filter(Boolean));
+  const skuNames = [..._skuMap.values()];
+  const matchedSku = skuNames.filter(name => rawNames.has(name)).sort();
+  // Fallback: kalau skuMap belum load atau tidak ada match, pakai nama mentah
+  const produkSet = matchedSku.length ? matchedSku : [...rawNames].sort();
   const sel = document.getElementById('pl-produk');
   if (sel) {
     const prev = sel.value;
