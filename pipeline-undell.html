@@ -407,11 +407,11 @@ function rebuildCSDropdown() {
           <span>${escapeHtml(c)}</span>
         </label>`).join('')}`;
   }
-  // Produk dropdown — semua produk aktif dari skuMap (konsisten dengan filter akuisisi)
-  // Fallback: kalau skuMap belum load, pakai nama bersih dari data room_work
-  const produkSet = _skuMap.size
-    ? [..._skuMap.values()].sort()
-    : [...new Set(allData.map(r => cleanProduk(r.produk)).filter(Boolean))].sort();
+  // Produk dropdown — nama resmi SKU, hanya yang ada di data bulan ini
+  const rawNames = new Set(allData.map(r => cleanProduk(r.produk)).filter(Boolean));
+  const matchedSku = [..._skuMap.values()].filter(name => rawNames.has(name)).sort();
+  // Fallback: kalau skuMap belum load atau tidak ada match, pakai nama mentah
+  const produkSet = matchedSku.length ? matchedSku : [...rawNames].sort();
   const sel = document.getElementById('pl-produk');
   if (sel) {
     const prev = sel.value;
