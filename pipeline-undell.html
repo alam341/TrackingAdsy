@@ -341,6 +341,16 @@ async function init() {
   const now = new Date();
   document.getElementById('pl-month').value =
     `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  // Load SKU produk untuk dropdown filter
+  const skuMap = await dbGetSkuMap().catch(() => new Map());
+  const skuProducts = [...skuMap.values()].sort();
+  const sel = document.getElementById('pl-produk');
+  if (sel) {
+    sel.innerHTML = `<option value="">Semua Produk</option>` +
+      skuProducts.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+  }
+
   renderLayout('pipeline-undell', authUser);
   await loadPipeline();
 }
@@ -359,7 +369,7 @@ async function loadPipeline() {
     COLS.forEach(c => colPages[c.key] = 0);
     _csFilter.clear();
     _produkFilter = '';
-    rebuildDropdowns();
+    rebuildCSDropdown();
     buildAndRender();
   } catch(e) {
     document.getElementById('pl-board').innerHTML =
@@ -382,9 +392,8 @@ function getCol(row) {
   return 'fu_info';
 }
 
-// ── Rebuild CS dropdown & produk select setelah data load ─────────────────
-function rebuildDropdowns() {
-  // CS dropdown
+// ── Rebuild CS dropdown setelah data load ────────────────────────────────
+function rebuildCSDropdown() {
   const csSet = [...new Set(allData.map(r => r.cs_nama).filter(Boolean))].sort();
   const dd = document.getElementById('plCSDD');
   if (dd) {
@@ -403,14 +412,6 @@ function rebuildDropdowns() {
             style="accent-color:var(--primary);width:14px;height:14px;cursor:pointer">
           <span>${escapeHtml(c)}</span>
         </label>`).join('')}`;
-  }
-  // Produk select — pakai nama bersih
-  const produkSet = [...new Set(allData.map(r => cleanProduk(r.produk)).filter(Boolean))].sort();
-  const sel = document.getElementById('pl-produk');
-  if (sel) {
-    sel.innerHTML = `<option value="">Semua Produk</option>` +
-      produkSet.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
-    sel.value = _produkFilter;
   }
 }
 
