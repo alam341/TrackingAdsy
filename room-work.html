@@ -193,6 +193,16 @@
   <div class="page" id="pageContent"></div>
 </div>
 
+<!-- Modal Foto Bukti CS -->
+<div id="rwFotoOverlay" onclick="if(event.target===this)rwCloseFoto()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box">
+  <div style="position:relative;max-width:520px;width:100%">
+    <button onclick="rwCloseFoto()" style="position:absolute;top:-36px;right:0;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1">✕</button>
+    <div id="rwFotoLabel" style="color:#fff;font-size:13px;font-weight:600;margin-bottom:10px"></div>
+    <img id="rwFotoImg" style="width:100%;border-radius:12px;display:block;max-height:80vh;object-fit:contain" />
+    <a id="rwFotoDownload" href="#" download target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;background:#fff;color:#111;font-size:12px;font-weight:600;padding:7px 14px;border-radius:8px;text-decoration:none">⬇️ Download Foto</a>
+  </div>
+</div>
+
 <!-- Modal riwayat pengiriman resi -->
 <div id="rwResiOverlay" class="rw-resi-overlay" onclick="if(event.target===this)rwCloseResiModal()">
   <div class="rw-resi-modal">
@@ -495,7 +505,9 @@ function rwRenderTable() {
           ? `<span onclick="rwShowResiDetail('${escapeHtml(o.resi)}');event.stopPropagation()" style="color:var(--primary);cursor:pointer;text-decoration:underline;text-underline-offset:2px">${escapeHtml(o.resi)}</span>`
           : '—'}
       </td>
-      <td style="font-size:.78rem">${escapeHtml(o.nama_pembeli || '—')}</td>
+      <td style="font-size:.78rem">
+        ${o.cs_log_type ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${o.cs_log_type==='sudah_balas'?'#16a34a':'#dc2626'};margin-right:5px;vertical-align:middle;flex-shrink:0"></span>` : ''}${escapeHtml(o.nama_pembeli || '—')}
+      </td>
       <td style="font-size:.78rem">
         ${o.hp_pembeli
           ? `<a href="https://wa.me/${o.hp_pembeli.replace(/\D/g,'').replace(/^0/,'62')}" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:none;font-weight:600">${escapeHtml(o.hp_pembeli)}</a>`
@@ -508,8 +520,8 @@ function rwRenderTable() {
       <td style="font-size:.78rem;color:var(--danger);font-weight:600;white-space:nowrap">${fmtCaseUndel(o.case_undel)}</td>
       <td style="text-align:center">
         ${o.cs_log_screenshot_url
-          ? `<img src="${escapeHtml(o.cs_log_screenshot_url)}" onclick="window.open('${escapeHtml(o.cs_log_screenshot_url)}','_blank');event.stopPropagation()"
-              style="width:36px;height:36px;object-fit:cover;border-radius:5px;cursor:pointer;border:2px solid ${o.cs_log_type==='sudah_balas'?'#86efac':'#fca5a5'}" title="${o.cs_log_type==='sudah_balas'?'Customer Sudah Balas':'Customer Tidak Balas'}" />`
+          ? `<img src="${escapeHtml(o.cs_log_screenshot_url)}" onclick="rwOpenFoto('${escapeHtml(o.cs_log_screenshot_url)}','${o.cs_log_type==='sudah_balas'?'💬 Customer Sudah Balas':'📵 Customer Tidak Balas'}');event.stopPropagation()"
+              style="width:36px;height:36px;object-fit:cover;border-radius:5px;cursor:pointer" />`
           : '<span style="color:var(--text-3);font-size:.75rem">—</span>'}
       </td>
       <td class="rw-col-hide" style="font-size:.72rem;color:var(--text-3)">
@@ -645,6 +657,18 @@ async function rwLoad() {
     _rwPreviewMode = false;
     rwRender();
   }
+}
+
+// ── Modal foto bukti CS ────────────────────────────────────────────────────────
+function rwOpenFoto(url, label) {
+  document.getElementById('rwFotoImg').src         = url;
+  document.getElementById('rwFotoDownload').href   = url;
+  document.getElementById('rwFotoLabel').textContent = label || '';
+  document.getElementById('rwFotoOverlay').style.display = 'flex';
+}
+function rwCloseFoto() {
+  document.getElementById('rwFotoOverlay').style.display = 'none';
+  document.getElementById('rwFotoImg').src = '';
 }
 
 // ── Resi detail modal ──────────────────────────────────────────────────────────
