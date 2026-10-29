@@ -22,10 +22,11 @@ module.exports = async function handler(req, res) {
         lapor:              'lapor_ekspedisi=eq.true',
         investigasi:        'investigasi=eq.true',
         terkirim_otomatis:  'auto_resolved=eq.true',
+        sudah_konfirmasi:   'cs_log_type=not.is.null',
         semua:              '',
       };
 
-      // Tab pipeline: kolom minimal + filter bulan — untuk Pipeline Undell page
+      // Tab pipeline: kolom minimal + filter bulan + merge status_resi dari akuisisi_orders
       if (tab === 'pipeline') {
         const now   = new Date();
         const y     = parseInt(req.query.year  || now.getFullYear());
@@ -33,10 +34,27 @@ module.exports = async function handler(req, res) {
         const from  = new Date(y, m - 1, 1).toISOString();
         const to    = new Date(y, m, 1).toISOString();
         const cols  = 'resi,cs_nama,cs_no_wa,nama_pembeli,hp_pembeli,produk,ekspedisi,kota_tujuan,case_undel,fu_count,fu_info_at,fu_1_at,fu_2_at,fu_3_at,cs_responded,cs_responded_at,lapor_ekspedisi,lapor_ekspedisi_at,created_at';
-        const data  = await sbFetch(
+        const rwData = await sbFetch(
           `room_work?select=${cols}&created_at=gte.${from}&created_at=lt.${to}&order=created_at.desc&limit=2000`
         );
-        return res.json(data || []);
+        const rows = rwData || [];
+
+        // Batch fetch status_resi dari akuisisi_orders untuk merge kolom SAMPAI/RETUR
+        if (rows.length) {
+          const CHUNK = 500;
+          const statusMap = {};
+          for (let i = 0; i < rows.length; i += CHUNK) {
+            const chunk = rows.slice(i, i + CHUNK).map(r => r.resi);
+            const inList = chunk.join(',');
+            const trackData = await sbFetch(
+              `akuisisi_orders?select=id,status_resi&id=in.(${inList})`
+            );
+            (trackData || []).forEach(t => { statusMap[t.id] = t.status_resi; });
+          }
+          rows.forEach(r => { r._status_resi = statusMap[r.resi] || null; });
+        }
+
+        return res.json(rows);
       }
 
       const f = filterMap[tab] ?? '';
