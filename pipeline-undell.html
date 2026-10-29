@@ -311,12 +311,13 @@ const COLS = [
   { key: 'retur',   cls: 'col-retur',   icon: '↩️', label: 'Retur',            sub: 'Status resi: RETUR' },
 ];
 
-let allData      = [];
-let colPages     = {};
-let filteredCols = {};
-let _csFilter    = new Set();
-let _produkFilter = '';
-let _skuMap      = new Map();
+let allData          = [];
+let colPages         = {};
+let filteredCols     = {};
+let _csFilter        = new Set();
+let _produkFilter    = '';
+let _skuMap          = new Map();
+let _produkDisplayMap = new Map(); // cleanProduk(raw) → display name resmi
 COLS.forEach(c => { colPages[c.key] = 0; filteredCols[c.key] = []; });
 
 function cleanProduk(raw) {
@@ -410,24 +411,31 @@ function rebuildCSDropdown() {
   }
   // Produk dropdown — hanya produk yang ada di data bulan ini, nama di-resolve ke SKU resmi
   // value=rawName (untuk filter), text=nama resmi SKU (untuk tampilan)
-  const rawArr = [...new Set(allData.map(r => cleanProduk(r.produk)).filter(Boolean))];
+  // Build map raw → display, dedup by display name
+  const rawArr   = [...new Set(allData.map(r => cleanProduk(r.produk)).filter(Boolean))];
   const skuValues = [..._skuMap.values()];
-  const produkOptions = rawArr.map(raw => {
-    const rawUp = raw.toUpperCase();
-    // Cari nama resmi SKU: exact match dulu, lalu substring (case-insensitive)
+  _produkDisplayMap = new Map();
+  rawArr.forEach(raw => {
+    const rawUp   = raw.toUpperCase();
     const display = skuValues.find(v => {
       const vUp = v.toUpperCase();
       return vUp === rawUp || vUp.includes(rawUp) || rawUp.includes(vUp);
     }) || raw;
-    return { raw, display };
-  }).sort((a, b) => a.display.localeCompare(b.display));
+    _produkDisplayMap.set(raw, display);
+  });
+  // Dedup by display — setiap display name muncul sekali
+  const seen = new Set();
+  const produkOpts = rawArr
+    .map(raw => ({ raw, display: _produkDisplayMap.get(raw) }))
+    .filter(({ display }) => { if (seen.has(display)) return false; seen.add(display); return true; })
+    .sort((a, b) => a.display.localeCompare(b.display));
   const sel = document.getElementById('pl-produk');
   if (sel) {
     const prev = sel.value;
     sel.innerHTML = `<option value="">Semua Produk</option>` +
-      produkOptions.map(({ raw, display }) =>
-        `<option value="${escapeHtml(raw)}">${escapeHtml(display)}</option>`).join('');
-    sel.value = produkOptions.some(p => p.raw === prev) ? prev : '';
+      produkOpts.map(({ display }) =>
+        `<option value="${escapeHtml(display)}">${escapeHtml(display)}</option>`).join('');
+    sel.value = seen.has(prev) ? prev : '';
   }
 }
 
@@ -475,7 +483,10 @@ function buildAndRender() {
       if (!hay.includes(q)) return;
     }
     if (_csFilter.size && !_csFilter.has(row.cs_nama)) return;
-    if (_produkFilter && cleanProduk(row.produk) !== _produkFilter) return;
+    if (_produkFilter) {
+      const resolved = _produkDisplayMap.get(cleanProduk(row.produk)) || cleanProduk(row.produk);
+      if (resolved !== _produkFilter) return;
+    }
     cols[getCol(row)].push(row);
   });
 
