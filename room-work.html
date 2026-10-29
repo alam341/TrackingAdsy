@@ -31,6 +31,25 @@
 .rw-skel.big { height: 26px; width: 55%; margin-bottom: 6px; }
 @keyframes rwPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
+/* ── Notif Bell ───────────────────────────────────────────────────── */
+.rw-bell-wrap { position:relative; flex-shrink:0 }
+.rw-bell-btn  { background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:18px;line-height:1;display:flex;align-items:center;transition:all .15s }
+.rw-bell-btn:hover { background:var(--primary);color:#fff;border-color:var(--primary) }
+.rw-bell-badge { position:absolute;top:-5px;right:-5px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;pointer-events:none }
+.rw-notif-drop { position:absolute;top:calc(100% + 8px);right:0;z-index:300;background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);width:320px;max-height:420px;display:flex;flex-direction:column;overflow:hidden }
+.rw-notif-head { display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px;border-bottom:1px solid var(--border);flex-shrink:0 }
+.rw-notif-head-title { font-size:.82rem;font-weight:700;color:var(--text-1) }
+.rw-notif-markall { font-size:.72rem;color:var(--primary);cursor:pointer;font-weight:600;background:none;border:none;padding:0;font-family:inherit }
+.rw-notif-list { overflow-y:auto;flex:1 }
+.rw-notif-item { display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);transition:background .12s }
+.rw-notif-item:hover { background:var(--hover,rgba(0,0,0,.04)) }
+.rw-notif-item.unread { background:rgba(67,97,238,.05) }
+.rw-notif-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px }
+.rw-notif-body { flex:1;min-width:0 }
+.rw-notif-text { font-size:.78rem;font-weight:600;color:var(--text-1);line-height:1.35 }
+.rw-notif-sub  { font-size:.7rem;color:var(--text-3);margin-top:2px }
+.rw-notif-empty { padding:32px 16px;text-align:center;font-size:.8rem;color:var(--text-3) }
+
 /* ── Filter & Tabs ────────────────────────────────────────────────── */
 .rw-topbar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -235,13 +254,14 @@ const RW_PAGE_SIZE = 20;
 
 // ── Tab definitions ────────────────────────────────────────────────────────────
 const RW_TABS = [
-  { key: 'aktif',           label: 'Aktif',              emoji: '🔴' },
-  { key: 'tidak_bales',     label: 'CS Tidak Bales',     emoji: '🚨' },
-  { key: 'bales',           label: 'CS Sudah Bales',     emoji: '✅' },
-  { key: 'lapor',           label: 'Lapor Ekspedisi',    emoji: '📤' },
-  { key: 'investigasi',     label: 'Investigasi',        emoji: '🔍' },
-  { key: 'terkirim_otomatis', label: 'Terkirim Otomatis', emoji: '🚀' },
-  { key: 'semua',           label: 'Semua',              emoji: '📋' },
+  { key: 'aktif',              label: 'Aktif',              emoji: '🔴' },
+  { key: 'tidak_bales',        label: 'CS Tidak Bales',     emoji: '🚨' },
+  { key: 'bales',              label: 'CS Sudah Bales',     emoji: '✅' },
+  { key: 'lapor',              label: 'Lapor Ekspedisi',    emoji: '📤' },
+  { key: 'investigasi',        label: 'Investigasi',        emoji: '🔍' },
+  { key: 'terkirim_otomatis',  label: 'Terkirim Otomatis',  emoji: '🚀' },
+  { key: 'sudah_konfirmasi',   label: 'Sudah Konfirmasi',   emoji: '📸' },
+  { key: 'semua',              label: 'Semua',              emoji: '📋' },
 ];
 
 // ── Case Undel mapping (Mengantar status_category → label friendly) ───────────
@@ -304,6 +324,19 @@ function rwRenderPage() {
       <select class="rw-select" id="rwEkspSel" onchange="rwSetEksp(this.value)"><option value="">Semua Ekspedisi</option></select>
       <select class="rw-select" id="rwBulanSel" onchange="rwSetBulan(this.value)"><option value="">Semua Bulan</option></select>
       <button class="rw-refresh" onclick="rwLoad()">🔄 Refresh</button>
+      <div class="rw-bell-wrap" id="rwBellWrap">
+        <button class="rw-bell-btn" onclick="rwToggleBell(event)" title="Notifikasi upload CS">🔔</button>
+        <div class="rw-bell-badge" id="rwBellBadge" style="display:none">0</div>
+        <div class="rw-notif-drop" id="rwNotifDrop" style="display:none">
+          <div class="rw-notif-head">
+            <span class="rw-notif-head-title">Notifikasi Upload CS</span>
+            <button class="rw-notif-markall" onclick="rwMarkAllRead()">Tandai semua dibaca</button>
+          </div>
+          <div class="rw-notif-list" id="rwNotifList">
+            <div class="rw-notif-empty">Belum ada notifikasi</div>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="rw-tabs" id="rwTabs"></div>
     <div id="rwTable"></div>
@@ -672,6 +705,133 @@ function rwCloseFoto() {
   document.getElementById('rwFotoImg').src = '';
 }
 
+// ── NOTIF BELL ─────────────────────────────────────────────────────────────────
+
+const NOTIF_READ_KEY = 'rw_notif_read';
+let _notifs = []; // { id, resi, cs_nama, type, ts }
+
+function rwNotifReadSet() {
+  return new Set(JSON.parse(localStorage.getItem(NOTIF_READ_KEY) || '[]'));
+}
+function rwNotifMarkRead(id) {
+  const s = rwNotifReadSet(); s.add(id);
+  localStorage.setItem(NOTIF_READ_KEY, JSON.stringify([...s]));
+}
+function rwNotifMarkAllRead() {
+  const ids = _notifs.map(n => n.id);
+  localStorage.setItem(NOTIF_READ_KEY, JSON.stringify(ids));
+  rwRenderNotifs();
+}
+function rwMarkAllRead() { rwNotifMarkAllRead(); }
+
+function rwNotifUnreadCount() {
+  const read = rwNotifReadSet();
+  return _notifs.filter(n => !read.has(n.id)).length;
+}
+
+function rwUpdateBadge() {
+  const badge = document.getElementById('rwBellBadge');
+  if (!badge) return;
+  const count = rwNotifUnreadCount();
+  badge.textContent = count > 9 ? '9+' : count;
+  badge.style.display = count > 0 ? 'flex' : 'none';
+}
+
+function rwRenderNotifs() {
+  const list = document.getElementById('rwNotifList');
+  if (!list) return;
+  rwUpdateBadge();
+  if (!_notifs.length) {
+    list.innerHTML = '<div class="rw-notif-empty">Belum ada notifikasi</div>';
+    return;
+  }
+  const read = rwNotifReadSet();
+  list.innerHTML = _notifs.map(n => {
+    const isRead   = read.has(n.id);
+    const isSudah  = n.type === 'sudah_balas';
+    const dotColor = isSudah ? '#16a34a' : '#dc2626';
+    const label    = isSudah ? 'Customer Sudah Balas' : 'Customer Tidak Balas';
+    const ts       = n.ts ? new Date(n.ts).toLocaleString('id-ID', { timeZone:'Asia/Jakarta', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+    return `<div class="rw-notif-item ${isRead ? '' : 'unread'}" onclick="rwNotifClick('${n.id}','${n.resi}')">
+      <div class="rw-notif-dot" style="background:${dotColor}"></div>
+      <div class="rw-notif-body">
+        <div class="rw-notif-text">${escapeHtml(n.cs_nama||'CS')} upload bukti · ${label}</div>
+        <div class="rw-notif-sub">Resi ${escapeHtml(n.resi)} · ${ts}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function rwNotifClick(id, resi) {
+  rwNotifMarkRead(id);
+  rwRenderNotifs();
+  rwCloseNotifDrop();
+  if (resi) rwShowResiDetail(resi);
+}
+
+function rwToggleBell(e) {
+  e.stopPropagation();
+  const drop = document.getElementById('rwNotifDrop');
+  if (!drop) return;
+  const open = drop.style.display !== 'none';
+  drop.style.display = open ? 'none' : 'flex';
+  if (!open) rwRenderNotifs();
+}
+
+function rwCloseNotifDrop() {
+  const drop = document.getElementById('rwNotifDrop');
+  if (drop) drop.style.display = 'none';
+}
+
+// Tutup dropdown kalau klik di luar
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('rwBellWrap');
+  if (wrap && !wrap.contains(e.target)) rwCloseNotifDrop();
+});
+
+// Load notif 24 jam terakhir dari room_work
+async function rwLoadNotifs() {
+  try {
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { data } = await _sb
+      .from('room_work')
+      .select('resi,cs_log_type,cs_log_at,cs_log_cs_nama')
+      .not('cs_log_type', 'is', null)
+      .gte('cs_log_at', since)
+      .order('cs_log_at', { ascending: false })
+      .limit(50);
+    _notifs = (data || []).map(r => ({
+      id:      r.resi,
+      resi:    r.resi,
+      cs_nama: r.cs_log_cs_nama,
+      type:    r.cs_log_type,
+      ts:      r.cs_log_at,
+    }));
+    rwUpdateBadge();
+  } catch(_) {}
+}
+
+// Realtime subscription — dengarkan UPDATE di room_work
+function rwSubscribeRealtime() {
+  try {
+    _sb.channel('room_work_cs_log')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'room_work' }, payload => {
+        const row = payload.new;
+        if (!row.cs_log_type || !row.cs_log_at) return;
+        // Cek apakah ini upload baru (bukan update yang sudah ada)
+        const existing = _notifs.find(n => n.id === row.resi);
+        if (existing && existing.ts === row.cs_log_at) return;
+        // Push ke depan list
+        _notifs = _notifs.filter(n => n.id !== row.resi);
+        _notifs.unshift({ id: row.resi, resi: row.resi, cs_nama: row.cs_log_cs_nama, type: row.cs_log_type, ts: row.cs_log_at });
+        rwUpdateBadge();
+        // Update row di tabel kalau lagi tampil
+        rwLoad();
+      })
+      .subscribe();
+  } catch(_) {}
+}
+
 // ── Resi detail modal ──────────────────────────────────────────────────────────
 function rwCloseResiModal() {
   document.getElementById('rwResiOverlay').classList.remove('open');
@@ -815,6 +975,8 @@ async function rwCekResiFromModal(resi) {
   renderLayout('room-work', user);
   rwRenderPage();
   await rwLoad();
+  rwLoadNotifs();
+  rwSubscribeRealtime();
 })();
 </script>
 </body>
