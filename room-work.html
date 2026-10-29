@@ -506,6 +506,12 @@ function rwRenderTable() {
       <td style="font-size:.78rem">${escapeHtml(o.ekspedisi || '—')}</td>
       <td class="rw-col-hide" style="font-size:.78rem">${escapeHtml(o.kota_tujuan || '—')}</td>
       <td style="font-size:.78rem;color:var(--danger);font-weight:600;white-space:nowrap">${fmtCaseUndel(o.case_undel)}</td>
+      <td style="text-align:center">
+        ${o.cs_log_screenshot_url
+          ? `<img src="${escapeHtml(o.cs_log_screenshot_url)}" onclick="window.open('${escapeHtml(o.cs_log_screenshot_url)}','_blank');event.stopPropagation()"
+              style="width:36px;height:36px;object-fit:cover;border-radius:5px;cursor:pointer;border:2px solid ${o.cs_log_type==='sudah_balas'?'#86efac':'#fca5a5'}" title="${o.cs_log_type==='sudah_balas'?'Customer Sudah Balas':'Customer Tidak Balas'}" />`
+          : '<span style="color:var(--text-3);font-size:.75rem">—</span>'}
+      </td>
       <td class="rw-col-hide" style="font-size:.72rem;color:var(--text-3)">
         ${fmtTs(o.created_at)}
         <div style="font-size:.65rem;color:var(--text-3)">${fmtDurShort(o.created_at)} lalu</div>
@@ -537,7 +543,7 @@ function rwRenderTable() {
           <thead><tr>
             <th class="rw-col-hide">#</th><th>Resi</th><th>Nama Pembeli</th><th>No Customer</th><th>CS</th>
             <th class="rw-col-hide">Produk</th><th>Ekspedisi</th><th class="rw-col-hide">Kota</th>
-            <th>Case Undel</th><th class="rw-col-hide">Masuk RW</th><th>Follow Up</th>
+            <th>Case Undel</th><th>Bukti CS</th><th class="rw-col-hide">Masuk RW</th><th>Follow Up</th>
             <th>Status FU</th><th>Aksi</th>
           </tr></thead>
           <tbody>${tableRows}</tbody>
@@ -708,37 +714,22 @@ async function rwShowResiDetail(resi) {
       </div>` : ''}
     `;
 
-    // ── Bukti foto dari CS Input — fetch room_work terpisah ──────────────────
-    let rwData = null;
-    try {
-      const { data: rw } = await _sb
-        .from('room_work')
-        .select('cs_log_type,cs_log_screenshot_url,cs_log_at,cs_log_cs_nama')
-        .eq('resi', resi)
-        .single();
-      rwData = rw;
-    } catch(_) {}
-
-    let csLogHtml = '';
-    if (rwData?.cs_log_screenshot_url) {
-      const isSudah  = rwData.cs_log_type === 'sudah_balas';
-      const logType  = isSudah ? '💬 Customer Sudah Balas' : '📵 Customer Tidak Balas';
+    // ── Label konfirmasi CS — ambil dari _rwData (sudah ada, no extra fetch) ──
+    const rwRow    = _rwData.find(r => r.resi === resi);
+    let csLogHtml  = '';
+    if (rwRow?.cs_log_screenshot_url) {
+      const isSudah  = rwRow.cs_log_type === 'sudah_balas';
+      const logLabel = isSudah ? '💬 Customer Sudah Balas' : '📵 Customer Tidak Balas';
       const logColor = isSudah ? '#16a34a' : '#dc2626';
       const logBg    = isSudah ? '#f0fdf4'  : '#fef2f2';
       const logBdr   = isSudah ? '#86efac'  : '#fca5a5';
-      const logTs    = rwData.cs_log_at
-        ? new Date(rwData.cs_log_at).toLocaleString('id-ID', { timeZone:'Asia/Jakarta', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })
-        : '';
-      const byCs = rwData.cs_log_cs_nama ? ` · ${escapeHtml(rwData.cs_log_cs_nama)}` : '';
-      const ssUrl = escapeHtml(rwData.cs_log_screenshot_url);
+      const byCs     = rwRow.cs_log_cs_nama ? ` · ${escapeHtml(rwRow.cs_log_cs_nama)}` : '';
+      const ssUrl    = escapeHtml(rwRow.cs_log_screenshot_url);
       csLogHtml = `
-        <div style="border:1.5px solid ${logBdr};border-radius:10px;background:${logBg};padding:10px 12px;margin-bottom:14px">
-          <div style="font-size:11px;font-weight:700;color:${logColor};margin-bottom:8px">${logType}${byCs}${logTs ? ' · '+logTs : ''}</div>
-          <img src="${ssUrl}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;cursor:pointer;display:block" onclick="window.open('${ssUrl}','_blank')" />
-          <a href="${ssUrl}" download target="_blank"
-            style="display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:12px;font-weight:600;color:${logColor};text-decoration:none">
-            ⬇️ Download Foto
-          </a>
+        <div style="border:1.5px solid ${logBdr};border-radius:8px;background:${logBg};padding:8px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span style="font-size:12px;font-weight:700;color:${logColor}">${logLabel}${byCs}</span>
+          <a href="${ssUrl}" target="_blank" download
+            style="font-size:11px;font-weight:600;color:${logColor};text-decoration:none;white-space:nowrap">⬇️ Lihat Foto</a>
         </div>`;
     }
 
