@@ -506,7 +506,8 @@ function rwRenderTable() {
           : '—'}
       </td>
       <td style="font-size:.78rem">
-        ${o.cs_log_type ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${o.cs_log_type==='sudah_balas'?'#16a34a':'#dc2626'};margin-right:5px;vertical-align:middle;flex-shrink:0"></span>` : ''}${escapeHtml(o.nama_pembeli || '—')}
+        <div>${escapeHtml(o.nama_pembeli || '—')}</div>
+        ${o.cs_log_type ? `<div style="font-size:.68rem;font-weight:600;color:${o.cs_log_type==='sudah_balas'?'#16a34a':'#dc2626'};margin-top:2px">${o.cs_log_type==='sudah_balas'?'Customer Bales':'Customer Tidak Balas'}</div>` : ''}
       </td>
       <td style="font-size:.78rem">
         ${o.hp_pembeli
