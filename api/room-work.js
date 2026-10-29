@@ -22,7 +22,7 @@ module.exports = async function handler(req, res) {
         lapor:              'lapor_ekspedisi=eq.true',
         investigasi:        'investigasi=eq.true',
         terkirim_otomatis:  'auto_resolved=eq.true',
-        sudah_konfirmasi:   'cs_log_type=not.is.null',
+        sudah_konfirmasi:   'cs_log_screenshot_url=not.is.null',
         semua:              '',
       };
 
