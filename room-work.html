@@ -71,9 +71,10 @@
 }
 .rw-refresh:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
 
-.rw-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 14px; }
+.rw-tabs { display: flex; gap: 4px; flex-wrap: nowrap; overflow-x: auto; margin-bottom: 14px; scrollbar-width: none; }
+.rw-tabs::-webkit-scrollbar { display: none; }
 .rw-tab {
-  border: 1px solid var(--border); background: var(--input-bg); color: var(--text-2);
+  border: 1px solid var(--border); background: var(--input-bg); color: var(--text-2); white-space: nowrap; flex-shrink: 0;
   border-radius: 8px; padding: 6px 14px; font-size: .8rem; font-weight: 600;
   cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 6px;
 }
