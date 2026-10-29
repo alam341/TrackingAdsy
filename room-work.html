@@ -659,11 +659,16 @@ async function rwShowResiDetail(resi) {
   overlay.classList.add('open');
 
   try {
-    const { data, error } = await _sb
-      .from('akuisisi_orders')
-      .select('id,ekspedisi,status_resi,status_resi_detail,status_resi_updated_at,kota_tujuan')
-      .eq('id', resi)
-      .single();
+    const [{ data, error }, { data: rwData }] = await Promise.all([
+      _sb.from('akuisisi_orders')
+        .select('id,ekspedisi,status_resi,status_resi_detail,status_resi_updated_at,kota_tujuan')
+        .eq('id', resi)
+        .single(),
+      _sb.from('room_work')
+        .select('cs_log_type,cs_log_screenshot_url,cs_log_at,cs_log_cs_nama')
+        .eq('resi', resi)
+        .single(),
+    ]);
 
     if (error || !data) {
       bodyEl.innerHTML = `<div class="rw-resi-loading">Data tidak ditemukan.</div>`;
@@ -708,6 +713,29 @@ async function rwShowResiDetail(resi) {
       </div>` : ''}
     `;
 
+    // ── Bukti foto dari CS Input ───────────────────────────────────────────
+    if (rwData?.cs_log_screenshot_url) {
+      const logType  = rwData.cs_log_type === 'sudah_balas' ? '💬 Sudah Balas' : '📵 Tidak Balas';
+      const logColor = rwData.cs_log_type === 'sudah_balas' ? '#16a34a' : '#dc2626';
+      const logBg    = rwData.cs_log_type === 'sudah_balas' ? '#f0fdf4'  : '#fef2f2';
+      const logBdr   = rwData.cs_log_type === 'sudah_balas' ? '#86efac'  : '#fca5a5';
+      const logTs    = rwData.cs_log_at
+        ? new Date(rwData.cs_log_at).toLocaleString('id-ID', { timeZone:'Asia/Jakarta', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })
+        : '';
+      const byCs = rwData.cs_log_cs_nama ? ` · ${escapeHtml(rwData.cs_log_cs_nama)}` : '';
+      infoEl.innerHTML += `
+        <div style="grid-column:1/-1;margin-top:10px;border:1.5px solid ${logBdr};border-radius:10px;background:${logBg};padding:10px 12px">
+          <div style="font-size:11px;font-weight:700;color:${logColor};margin-bottom:8px">${logType}${byCs}${logTs ? ' · '+logTs : ''}</div>
+          <img src="${escapeHtml(rwData.cs_log_screenshot_url)}"
+            style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;cursor:pointer;display:block"
+            onclick="window.open('${escapeHtml(rwData.cs_log_screenshot_url)}','_blank')" />
+          <a href="${escapeHtml(rwData.cs_log_screenshot_url)}" download target="_blank"
+            style="display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:12px;font-weight:600;color:${logColor};text-decoration:none">
+            ⬇️ Download Foto
+          </a>
+        </div>`;
+    }
+
     if (!records.length) {
       bodyEl.innerHTML = `<div class="rw-resi-loading">Belum ada riwayat tersimpan.<br>
         <button class="rw-resi-cek-btn" style="max-width:200px;margin:12px auto 0" onclick="rwCekResiFromModal('${escapeHtml(resi)}')">🔄 Cek Sekarang</button>
@@ -725,7 +753,7 @@ async function rwShowResiDetail(resi) {
           });
         }
         const desc = r.description || r.tracking_name || '';
-        const loc  = r.current_location?.location_name || '';
+        const loc  = typeof r.current_location === 'string' ? r.current_location : (r.current_location?.location_name || '');
         return `<div class="rw-tl-item${i === 0 ? ' first' : ''}">
           <div class="rw-tl-time">${escapeHtml(waktu)}</div>
           <div>
