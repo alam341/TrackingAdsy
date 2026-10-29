@@ -713,23 +713,24 @@ async function rwShowResiDetail(resi) {
       </div>` : ''}
     `;
 
-    // ── Bukti foto dari CS Input ───────────────────────────────────────────
+    // ── Bukti foto dari CS Input — taruh di bodyEl sebelum timeline ──────────
+    let csLogHtml = '';
     if (rwData?.cs_log_screenshot_url) {
-      const logType  = rwData.cs_log_type === 'sudah_balas' ? '💬 Sudah Balas' : '📵 Tidak Balas';
-      const logColor = rwData.cs_log_type === 'sudah_balas' ? '#16a34a' : '#dc2626';
-      const logBg    = rwData.cs_log_type === 'sudah_balas' ? '#f0fdf4'  : '#fef2f2';
-      const logBdr   = rwData.cs_log_type === 'sudah_balas' ? '#86efac'  : '#fca5a5';
+      const isSudah  = rwData.cs_log_type === 'sudah_balas';
+      const logType  = isSudah ? '💬 Customer Sudah Balas' : '📵 Customer Tidak Balas';
+      const logColor = isSudah ? '#16a34a' : '#dc2626';
+      const logBg    = isSudah ? '#f0fdf4'  : '#fef2f2';
+      const logBdr   = isSudah ? '#86efac'  : '#fca5a5';
       const logTs    = rwData.cs_log_at
         ? new Date(rwData.cs_log_at).toLocaleString('id-ID', { timeZone:'Asia/Jakarta', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })
         : '';
       const byCs = rwData.cs_log_cs_nama ? ` · ${escapeHtml(rwData.cs_log_cs_nama)}` : '';
-      infoEl.innerHTML += `
-        <div style="grid-column:1/-1;margin-top:10px;border:1.5px solid ${logBdr};border-radius:10px;background:${logBg};padding:10px 12px">
+      const ssUrl = escapeHtml(rwData.cs_log_screenshot_url);
+      csLogHtml = `
+        <div style="border:1.5px solid ${logBdr};border-radius:10px;background:${logBg};padding:10px 12px;margin-bottom:14px">
           <div style="font-size:11px;font-weight:700;color:${logColor};margin-bottom:8px">${logType}${byCs}${logTs ? ' · '+logTs : ''}</div>
-          <img src="${escapeHtml(rwData.cs_log_screenshot_url)}"
-            style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;cursor:pointer;display:block"
-            onclick="window.open('${escapeHtml(rwData.cs_log_screenshot_url)}','_blank')" />
-          <a href="${escapeHtml(rwData.cs_log_screenshot_url)}" download target="_blank"
+          <img src="${ssUrl}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;cursor:pointer;display:block" onclick="window.open('${ssUrl}','_blank')" />
+          <a href="${ssUrl}" download target="_blank"
             style="display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:12px;font-weight:600;color:${logColor};text-decoration:none">
             ⬇️ Download Foto
           </a>
@@ -737,13 +738,13 @@ async function rwShowResiDetail(resi) {
     }
 
     if (!records.length) {
-      bodyEl.innerHTML = `<div class="rw-resi-loading">Belum ada riwayat tersimpan.<br>
+      bodyEl.innerHTML = `${csLogHtml}<div class="rw-resi-loading">Belum ada riwayat tersimpan.<br>
         <button class="rw-resi-cek-btn" style="max-width:200px;margin:12px auto 0" onclick="rwCekResiFromModal('${escapeHtml(resi)}')">🔄 Cek Sekarang</button>
       </div>`;
       return;
     }
 
-    bodyEl.innerHTML = `<div class="rw-timeline">
+    bodyEl.innerHTML = `${csLogHtml}<div class="rw-timeline">
       ${records.map((r, i) => {
         let waktu = '';
         if (r.actual_time) {
