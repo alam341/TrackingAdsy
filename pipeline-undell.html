@@ -322,7 +322,8 @@ COLS.forEach(c => { colPages[c.key] = 0; filteredCols[c.key] = []; });
 function cleanProduk(raw) {
   return String(raw || '')
     .replace(/\*/g, '')
-    .replace(/^\d+\s+(BOTOL|BOX|PCS|BTL)\s+(NEW\s+)?/i, '')
+    .replace(/^\d+\s+(BOTOL|BOX|PCS|BTL)\s+(NEW\s+)?/i, '')  // strip "4 BOX NEW " prefix
+    .replace(/\s*[×xX]\s*\d+\s*$/i, '')                       // strip " × 1" suffix
     .trim();
 }
 
@@ -407,17 +408,26 @@ function rebuildCSDropdown() {
           <span>${escapeHtml(c)}</span>
         </label>`).join('')}`;
   }
-  // Produk dropdown — nama resmi SKU, hanya yang ada di data bulan ini
-  const rawNames = new Set(allData.map(r => cleanProduk(r.produk)).filter(Boolean));
-  const matchedSku = [..._skuMap.values()].filter(name => rawNames.has(name)).sort();
-  // Fallback: kalau skuMap belum load atau tidak ada match, pakai nama mentah
-  const produkSet = matchedSku.length ? matchedSku : [...rawNames].sort();
+  // Produk dropdown — hanya produk yang ada di data bulan ini, nama di-resolve ke SKU resmi
+  // value=rawName (untuk filter), text=nama resmi SKU (untuk tampilan)
+  const rawArr = [...new Set(allData.map(r => cleanProduk(r.produk)).filter(Boolean))];
+  const skuValues = [..._skuMap.values()];
+  const produkOptions = rawArr.map(raw => {
+    const rawUp = raw.toUpperCase();
+    // Cari nama resmi SKU: exact match dulu, lalu substring (case-insensitive)
+    const display = skuValues.find(v => {
+      const vUp = v.toUpperCase();
+      return vUp === rawUp || vUp.includes(rawUp) || rawUp.includes(vUp);
+    }) || raw;
+    return { raw, display };
+  }).sort((a, b) => a.display.localeCompare(b.display));
   const sel = document.getElementById('pl-produk');
   if (sel) {
     const prev = sel.value;
     sel.innerHTML = `<option value="">Semua Produk</option>` +
-      produkSet.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
-    sel.value = produkSet.includes(prev) ? prev : '';
+      produkOptions.map(({ raw, display }) =>
+        `<option value="${escapeHtml(raw)}">${escapeHtml(display)}</option>`).join('');
+    sel.value = produkOptions.some(p => p.raw === prev) ? prev : '';
   }
 }
 
