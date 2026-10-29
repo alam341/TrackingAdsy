@@ -406,6 +406,7 @@ function rwRender() {
     lapor:              _base.filter(o => o.lapor_ekspedisi).length,
     investigasi:        _base.filter(o => o.investigasi).length,
     terkirim_otomatis:  _base.filter(o => o.auto_resolved).length,
+    sudah_konfirmasi:   _base.filter(o => !!o.cs_log_screenshot_url).length,
     semua:              _base.length,
   };
 
@@ -473,6 +474,7 @@ function rwGetTabRows() {
   else if (_rwTab === 'lapor')               rows = rows.filter(o => o.lapor_ekspedisi);
   else if (_rwTab === 'investigasi')         rows = rows.filter(o => o.investigasi);
   else if (_rwTab === 'terkirim_otomatis')   rows = rows.filter(o => o.auto_resolved);
+  else if (_rwTab === 'sudah_konfirmasi')    rows = rows.filter(o => !!o.cs_log_screenshot_url);
 
   // Search
   if (_rwSearch) {
