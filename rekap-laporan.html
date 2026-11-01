@@ -17,6 +17,17 @@
 .rl-card {
   background: var(--card); border: 1px solid var(--border);
   border-radius: 14px; padding: 16px 18px;
+  cursor: default; transition: border-color .15s, box-shadow .15s;
+}
+.rl-card.clickable {
+  cursor: pointer;
+}
+.rl-card.clickable:hover {
+  border-color: var(--primary); box-shadow: 0 0 0 3px rgba(67,97,238,.1);
+}
+.rl-card.active {
+  border-color: var(--primary); box-shadow: 0 0 0 3px rgba(67,97,238,.15);
+  background: rgba(67,97,238,.04);
 }
 .rl-card-label { font-size: .72rem; font-weight: 600; color: var(--text-3); margin-bottom: 6px; }
 .rl-card-num   { font-size: 2rem; font-weight: 800; line-height: 1; }
@@ -95,6 +106,60 @@
 .rl-loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 48px; color: var(--text-3); }
 .rl-pagination { display: flex; align-items: center; gap: 10px; justify-content: center; padding: 14px 0 4px; }
 
+/* ── Resi clickable ────────────────────────────────────────────────── */
+.rl-resi-link {
+  font-weight: 700; font-size: .78rem; color: var(--primary);
+  cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+  font-family: monospace;
+}
+.rl-resi-link:hover { opacity: .75; }
+
+/* ── Resi detail modal ─────────────────────────────────────────────── */
+.rl-resi-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000;
+  display: none; align-items: center; justify-content: center; padding: 16px;
+}
+.rl-resi-overlay.open { display: flex; }
+.rl-resi-modal {
+  background: var(--card); border-radius: 16px; width: 100%; max-width: 460px;
+  max-height: 85vh; display: flex; flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0,0,0,.18);
+}
+.rl-resi-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 16px 18px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.rl-resi-title    { font-family: monospace; font-size: .9rem; font-weight: 700; word-break: break-all; }
+.rl-resi-subtitle { font-size: .65rem; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+.rl-resi-close    { background: none; border: none; font-size: 1.3rem; line-height: 1; cursor: pointer; color: var(--text-3); padding: 0 0 0 8px; flex-shrink: 0; }
+.rl-resi-close:hover { color: var(--text-1); }
+.rl-resi-info {
+  display: grid; grid-template-columns: 1fr 1fr; padding: 10px 18px;
+  border-bottom: 1px solid var(--border); gap: 0; flex-shrink: 0;
+}
+.rl-resi-info-item { padding: 6px 0; border-right: 1px solid var(--border); }
+.rl-resi-info-item:nth-child(even) { border-right: none; padding-left: 14px; }
+.rl-resi-info-label { font-size: .62rem; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 2px; }
+.rl-resi-info-val   { font-size: .8rem; font-weight: 600; }
+.rl-resi-body   { overflow-y: auto; padding: 14px 18px 18px; flex: 1; }
+.rl-resi-loading{ text-align: center; padding: 32px 16px; color: var(--text-3); font-size: .83rem; }
+.rl-tl-item {
+  display: grid; grid-template-columns: 100px 1fr; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.rl-tl-item:last-child { border-bottom: none; }
+.rl-tl-item.first .rl-tl-desc { color: var(--primary); font-weight: 700; }
+.rl-tl-time { font-size: .62rem; color: var(--text-3); line-height: 1.4; padding-top: 2px; }
+.rl-tl-desc { font-size: .75rem; line-height: 1.45; }
+.rl-tl-loc  { font-size: .65rem; color: var(--text-3); margin-top: 2px; }
+.rl-resi-cek-btn {
+  display: block; width: 100%; margin-top: 14px;
+  background: var(--primary); color: #fff; border: none; border-radius: 10px;
+  padding: 10px; font-size: .82rem; font-weight: 700; cursor: pointer; transition: opacity .15s;
+}
+.rl-resi-cek-btn:hover { opacity: .88; }
+.rl-resi-cek-btn:disabled { opacity: .5; cursor: default; }
+
 /* ── Mobile ───────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .rl-filter { gap: 7px; padding: 10px 12px; }
@@ -120,16 +185,34 @@
   <div class="page" id="pageContent"></div>
 </div>
 
+<!-- Modal riwayat pengiriman resi -->
+<div id="rlResiOverlay" class="rl-resi-overlay" onclick="if(event.target===this)rlCloseResiModal()">
+  <div class="rl-resi-modal">
+    <div class="rl-resi-header">
+      <div>
+        <div class="rl-resi-subtitle">Riwayat Pengiriman</div>
+        <div class="rl-resi-title" id="rlResiTitle">—</div>
+      </div>
+      <button class="rl-resi-close" onclick="rlCloseResiModal()">×</button>
+    </div>
+    <div class="rl-resi-info" id="rlResiInfo"></div>
+    <div class="rl-resi-body" id="rlResiBody">
+      <div class="rl-resi-loading">Memuat…</div>
+    </div>
+  </div>
+</div>
+
 <script src="js/db.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/app.js"></script>
 <script>
 // ── State ──────────────────────────────────────────────────────────────────────
-let _rlData     = []; // semua room_work yang lapor_ekspedisi = true
-let _rlCS       = '';
-let _rlEksp     = '';
-let _rlStatus   = ''; // '' | 'investigasi' | 'pending'
-let _rlPage     = 1;
+let _rlData       = []; // semua room_work yang lapor_ekspedisi = true
+let _rlCS         = '';
+let _rlEksp       = '';
+let _rlStatus     = ''; // '' | 'investigasi' | 'pending'
+let _rlCardFilter = ''; // '' | 'pending' | 'investigasi' — filter dari klik card
+let _rlPage       = 1;
 const RL_PAGE_SIZE = 20;
 
 let _rlDateTo   = wibYMD();
@@ -193,22 +276,25 @@ function rlRender() {
   const successRate = total > 0 ? (((total - investigasi) / total) * 100).toFixed(1) : '—';
 
   // Summary cards
+  const isAll   = _rlCardFilter === '';
+  const isPend  = _rlCardFilter === 'pending';
+  const isInvst = _rlCardFilter === 'investigasi';
   const summary = document.getElementById('rlSummary');
   if (summary) summary.innerHTML = `<div class="rl-summary">
-    <div class="rl-card">
+    <div class="rl-card clickable ${isAll ? 'active' : ''}" onclick="rlCardFilter('')" title="Lihat semua">
       <div class="rl-card-label">📤 Total Lapor Ekspedisi</div>
       <div class="rl-card-num c-primary">${total}</div>
-      <div class="rl-card-sub">Sudah dilaporkan</div>
+      <div class="rl-card-sub">${isAll ? '✓ Semua ditampilkan' : 'Klik untuk lihat semua'}</div>
     </div>
-    <div class="rl-card">
+    <div class="rl-card clickable ${isPend ? 'active' : ''}" onclick="rlCardFilter('pending')" title="Filter Pending">
       <div class="rl-card-label">⏳ Pending (Menunggu Hasil)</div>
       <div class="rl-card-num" style="color:var(--warning)">${pending}</div>
-      <div class="rl-card-sub">Belum ada update balik</div>
+      <div class="rl-card-sub">${isPend ? '✓ Difilter' : 'Klik untuk filter'}</div>
     </div>
-    <div class="rl-card">
+    <div class="rl-card clickable ${isInvst ? 'active' : ''}" onclick="rlCardFilter('investigasi')" title="Filter Investigasi">
       <div class="rl-card-label">🔍 Investigasi (Tetap Retur)</div>
       <div class="rl-card-num c-danger">${investigasi}</div>
-      <div class="rl-card-sub">Paket tetap kembali</div>
+      <div class="rl-card-sub">${isInvst ? '✓ Difilter' : 'Klik untuk filter'}</div>
     </div>
     <div class="rl-card">
       <div class="rl-card-label">✅ Success Rate</div>
@@ -280,7 +366,7 @@ function rlTableHtml(rows) {
 
     return `<tr>
       <td style="font-size:.7rem;color:var(--text-3)">${offset + i + 1}</td>
-      <td style="font-weight:600;font-size:.78rem">${escapeHtml(o.resi || '—')}</td>
+      <td><span class="rl-resi-link" data-resi="${escapeHtml(o.resi || '')}" onclick="rlOpenResi(this.dataset.resi)">${escapeHtml(o.resi || '—')}</span></td>
       <td style="font-size:.78rem">${escapeHtml(o.nama_pembeli || '—')}</td>
       <td style="font-size:.78rem">${escapeHtml(o.cs_nama || '—')}</td>
       <td style="font-size:.78rem">${escapeHtml(o.ekspedisi || '—')}</td>
@@ -322,22 +408,35 @@ function rlTableHtml(rows) {
 
 // ── Filter & Event handlers ────────────────────────────────────────────────────
 function rlFiltered() {
+  // Aktif filter: card filter takes precedence over dropdown status filter
+  const statusFilter = _rlCardFilter || _rlStatus;
   return _rlData.filter(o => {
     const lapAt = o.lapor_ekspedisi_at || o.created_at;
     if (_rlDateFrom && lapAt < _rlDateFrom) return false;
     if (_rlDateTo   && lapAt.slice(0,10) > _rlDateTo) return false;
     if (_rlCS   && o.cs_nama   !== _rlCS)   return false;
     if (_rlEksp && o.ekspedisi !== _rlEksp) return false;
-    if (_rlStatus === 'investigasi' && !o.investigasi) return false;
-    if (_rlStatus === 'pending'     &&  o.investigasi) return false;
+    if (statusFilter === 'investigasi' && !o.investigasi) return false;
+    if (statusFilter === 'pending'     &&  o.investigasi) return false;
     return true;
   });
 }
 
 function rlSetCS(v)     { _rlCS = v;     _rlPage = 1; rlRender(); }
 function rlSetEksp(v)   { _rlEksp = v;   _rlPage = 1; rlRender(); }
-function rlSetStatus(v) { _rlStatus = v; _rlPage = 1; rlRender(); }
+function rlSetStatus(v) { _rlStatus = v; _rlCardFilter = ''; _rlPage = 1; rlRender(); }
 function rlGoPage(p)    { _rlPage = p; document.getElementById('rlBody')?.scrollIntoView({ behavior:'smooth', block:'start' }); rlRender(); }
+function rlCardFilter(v) {
+  _rlCardFilter = v;
+  _rlStatus = '';
+  _rlPage = 1;
+  // Sync dropdown
+  const sel = document.getElementById('rlStatusSel');
+  if (sel) sel.value = '';
+  rlRender();
+  // Scroll ke tabel
+  setTimeout(() => document.getElementById('rlBody')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+}
 
 function rlPreset(key) {
   _rlPreset = key;
@@ -385,6 +484,126 @@ async function rlLoad() {
     if (body) body.innerHTML = `<div class="rl-loading" style="color:var(--danger)">⚠️ Gagal: ${escapeHtml(e.message)}<br><button class="btn btn-outline btn-sm" style="margin-top:12px" onclick="rlLoad()">Coba Lagi</button></div>`;
   }
 }
+
+// ── Resi detail modal ──────────────────────────────────────────────────────────
+function rlCloseResiModal() {
+  document.getElementById('rlResiOverlay').classList.remove('open');
+}
+
+async function rlOpenResi(resi) {
+  if (!resi) return;
+  const overlay = document.getElementById('rlResiOverlay');
+  const titleEl = document.getElementById('rlResiTitle');
+  const infoEl  = document.getElementById('rlResiInfo');
+  const bodyEl  = document.getElementById('rlResiBody');
+
+  titleEl.textContent = resi;
+  infoEl.innerHTML    = '';
+  bodyEl.innerHTML    = '<div class="rl-resi-loading">⏳ Memuat riwayat pengiriman…</div>';
+  overlay.classList.add('open');
+
+  try {
+    const { data, error } = await _sb
+      .from('akuisisi_orders')
+      .select('id,ekspedisi,status_resi,status_resi_detail,status_resi_updated_at,kota_tujuan')
+      .eq('id', resi)
+      .single();
+
+    if (error || !data) {
+      bodyEl.innerHTML = `<div class="rl-resi-loading">Data tidak ditemukan di database tracking.</div>`;
+      return;
+    }
+
+    const STATUS_LABEL = {
+      SAMPAI:'✅ Sampai', BERMASALAH:'⚠️ Bermasalah', RETUR:'↩️ Retur',
+      DIKIRIM:'📦 Dikirim', OTW:'🚚 OTW', KOTA_TUJUAN:'🏙️ Kota Tujuan',
+      BELUM_DICEK:'🔘 Belum Dicek', MANUAL:'📋 Manual', MANUAL_CEK:'📋 Cek Manual',
+    };
+    const detail    = data.status_resi_detail || {};
+    const records   = Array.isArray(detail.records) ? detail.records : [];
+    const updatedAt = data.status_resi_updated_at
+      ? new Date(data.status_resi_updated_at).toLocaleString('id-ID', {
+          timeZone: 'Asia/Jakarta', day:'2-digit', month:'short',
+          hour:'2-digit', minute:'2-digit',
+        })
+      : '—';
+
+    infoEl.innerHTML = `
+      <div class="rl-resi-info-item">
+        <div class="rl-resi-info-label">Ekspedisi</div>
+        <div class="rl-resi-info-val">${escapeHtml(data.ekspedisi || '—')}</div>
+      </div>
+      <div class="rl-resi-info-item">
+        <div class="rl-resi-info-label">Status</div>
+        <div class="rl-resi-info-val">${STATUS_LABEL[data.status_resi] || data.status_resi || '—'}</div>
+      </div>
+      <div class="rl-resi-info-item">
+        <div class="rl-resi-info-label">Kota Tujuan</div>
+        <div class="rl-resi-info-val">${escapeHtml(data.kota_tujuan || '—')}</div>
+      </div>
+      <div class="rl-resi-info-item">
+        <div class="rl-resi-info-label">Update Terakhir</div>
+        <div class="rl-resi-info-val">${updatedAt}</div>
+      </div>
+      ${detail.masalah_kategori ? `
+      <div class="rl-resi-info-item" style="grid-column:1/-1;border-right:none">
+        <div class="rl-resi-info-label">Kategori Masalah</div>
+        <div class="rl-resi-info-val" style="color:var(--danger)">${escapeHtml(detail.masalah_kategori)}</div>
+      </div>` : ''}
+    `;
+
+    if (!records.length) {
+      bodyEl.innerHTML = `<div class="rl-resi-loading">Belum ada riwayat tersimpan.<br>
+        <button class="rl-resi-cek-btn" style="max-width:200px;margin:12px auto 0" onclick="rlCekResi('${escapeHtml(resi)}')">🔄 Cek Sekarang</button>
+      </div>`;
+      return;
+    }
+
+    bodyEl.innerHTML = `<div>
+      ${records.map((r, i) => {
+        let waktu = '';
+        if (r.actual_time) {
+          waktu = new Date(r.actual_time * 1000).toLocaleString('id-ID', {
+            timeZone: 'Asia/Jakarta', day:'2-digit', month:'short',
+            hour:'2-digit', minute:'2-digit',
+          });
+        }
+        const desc = r.description || r.tracking_name || '';
+        const loc  = typeof r.current_location === 'string' ? r.current_location : (r.current_location?.location_name || '');
+        return `<div class="rl-tl-item${i === 0 ? ' first' : ''}">
+          <div class="rl-tl-time">${escapeHtml(waktu)}</div>
+          <div>
+            <div class="rl-tl-desc">${escapeHtml(desc)}</div>
+            ${loc ? `<div class="rl-tl-loc">📍 ${escapeHtml(loc)}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <button class="rl-resi-cek-btn" id="rlCekBtn" onclick="rlCekResi('${escapeHtml(resi)}')">🔄 Cek Ulang</button>`;
+
+  } catch (e) {
+    bodyEl.innerHTML = `<div class="rl-resi-loading">Error: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function rlCekResi(resi) {
+  const btn = document.getElementById('rlCekBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Mengecek...'; }
+  try {
+    const r = await fetch(`/api/tracking-check?table=akuisisi_orders&id=${encodeURIComponent(resi)}`);
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal cek');
+    await rlOpenResi(resi);
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Cek Ulang'; }
+    alert('Gagal cek resi: ' + e.message);
+  }
+}
+
+// Keyboard: ESC tutup modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') rlCloseResiModal();
+});
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 (async () => {
