@@ -249,8 +249,9 @@ function rlRenderPage() {
       <select class="rl-select" id="rlEkspSel"   onchange="rlSetEksp(this.value)"><option value="">Semua Ekspedisi</option></select>
       <select class="rl-select" id="rlStatusSel" onchange="rlSetStatus(this.value)">
         <option value="">Semua Status</option>
-        <option value="investigasi">🔍 Investigasi</option>
         <option value="pending">⏳ Pending</option>
+        <option value="terkirim">✅ Berhasil Terkirim</option>
+        <option value="investigasi">🔍 Investigasi</option>
       </select>
       <button class="rl-refresh" onclick="rlLoad()">🔄 Refresh</button>
     </div>
@@ -270,15 +271,17 @@ function rlRender() {
   if (selCS)   selCS.innerHTML   = `<option value="">Semua CS</option>` + csSet.map(c => `<option value="${escapeHtml(c)}" ${_rlCS===c?'selected':''}>${escapeHtml(c)}</option>`).join('');
   if (selEksp) selEksp.innerHTML = `<option value="">Semua Ekspedisi</option>` + ekspSet.map(e => `<option value="${escapeHtml(e)}" ${_rlEksp===e?'selected':''}>${escapeHtml(e)}</option>`).join('');
 
-  const total       = filtered.length;
-  const investigasi = filtered.filter(o => o.investigasi).length;
-  const pending     = filtered.filter(o => !o.investigasi).length;
-  const successRate = total > 0 ? (((total - investigasi) / total) * 100).toFixed(1) : '—';
+  const total      = filtered.length;
+  const terkirim   = filtered.filter(o => o.auto_resolved).length;
+  const investigasi= filtered.filter(o => o.investigasi && !o.auto_resolved).length;
+  const pending    = filtered.filter(o => !o.investigasi && !o.auto_resolved).length;
+  const successRate= total > 0 ? ((terkirim / total) * 100).toFixed(1) : '—';
 
   // Summary cards
-  const isAll   = _rlCardFilter === '';
-  const isPend  = _rlCardFilter === 'pending';
-  const isInvst = _rlCardFilter === 'investigasi';
+  const isAll    = _rlCardFilter === '';
+  const isPend   = _rlCardFilter === 'pending';
+  const isInvst  = _rlCardFilter === 'investigasi';
+  const isTerkirim = _rlCardFilter === 'terkirim';
   const summary = document.getElementById('rlSummary');
   if (summary) summary.innerHTML = `<div class="rl-summary">
     <div class="rl-card clickable ${isAll ? 'active' : ''}" onclick="rlCardFilter('')" title="Lihat semua">
@@ -291,15 +294,15 @@ function rlRender() {
       <div class="rl-card-num" style="color:var(--warning)">${pending}</div>
       <div class="rl-card-sub">${isPend ? '✓ Difilter' : 'Klik untuk filter'}</div>
     </div>
+    <div class="rl-card clickable ${isTerkirim ? 'active' : ''}" onclick="rlCardFilter('terkirim')" title="Filter Berhasil Terkirim">
+      <div class="rl-card-label">✅ Berhasil Terkirim</div>
+      <div class="rl-card-num c-success">${terkirim}</div>
+      <div class="rl-card-sub">${isTerkirim ? '✓ Difilter' : 'Sampai setelah lapor'}</div>
+    </div>
     <div class="rl-card clickable ${isInvst ? 'active' : ''}" onclick="rlCardFilter('investigasi')" title="Filter Investigasi">
       <div class="rl-card-label">🔍 Investigasi (Tetap Retur)</div>
       <div class="rl-card-num c-danger">${investigasi}</div>
-      <div class="rl-card-sub">${isInvst ? '✓ Difilter' : 'Klik untuk filter'}</div>
-    </div>
-    <div class="rl-card">
-      <div class="rl-card-label">✅ Success Rate</div>
-      <div class="rl-card-num c-success">${successRate}${successRate !== '—' ? '%' : ''}</div>
-      <div class="rl-card-sub">Berhasil tidak retur</div>
+      <div class="rl-card-sub">${isInvst ? '✓ Difilter' : successRate !== '—' ? `Success rate ${successRate}%` : 'Klik untuk filter'}</div>
     </div>
   </div>`;
 
@@ -320,20 +323,24 @@ function rlEkspBreakdownHtml(rows) {
   const ekspMap = {};
   rows.forEach(o => {
     const e = o.ekspedisi || 'Lainnya';
-    if (!ekspMap[e]) ekspMap[e] = { total: 0, investigasi: 0 };
+    if (!ekspMap[e]) ekspMap[e] = { total: 0, terkirim: 0, investigasi: 0, pending: 0 };
     ekspMap[e].total++;
-    if (o.investigasi) ekspMap[e].investigasi++;
+    if (o.auto_resolved)                 ekspMap[e].terkirim++;
+    else if (o.investigasi)              ekspMap[e].investigasi++;
+    else                                 ekspMap[e].pending++;
   });
 
   const cards = Object.entries(ekspMap)
     .sort((a, b) => b[1].total - a[1].total)
     .map(([eksp, d]) => {
-      const successRate = d.total > 0 ? ((d.total - d.investigasi) / d.total * 100).toFixed(0) : 0;
+      const successRate = d.total > 0 ? (d.terkirim / d.total * 100).toFixed(0) : 0;
       const rateColor   = successRate >= 80 ? '#06C270' : successRate >= 60 ? '#FFB703' : '#EF233C';
       return `<div class="rl-eksp-card">
         <div class="rl-eksp-name">🚚 ${escapeHtml(eksp)}</div>
         <div class="rl-eksp-row"><span class="rl-eksp-label">Total Lapor</span><span class="rl-eksp-val">${d.total}</span></div>
-        <div class="rl-eksp-row"><span class="rl-eksp-label">Investigasi</span><span class="rl-eksp-val" style="color:var(--danger)">${d.investigasi}</span></div>
+        <div class="rl-eksp-row"><span class="rl-eksp-label">✅ Terkirim</span><span class="rl-eksp-val" style="color:var(--success)">${d.terkirim}</span></div>
+        <div class="rl-eksp-row"><span class="rl-eksp-label">⏳ Pending</span><span class="rl-eksp-val" style="color:var(--warning)">${d.pending}</span></div>
+        <div class="rl-eksp-row"><span class="rl-eksp-label">🔍 Investigasi</span><span class="rl-eksp-val" style="color:var(--danger)">${d.investigasi}</span></div>
         <div class="rl-eksp-row"><span class="rl-eksp-label">Success Rate</span><span class="rl-eksp-val" style="color:${rateColor}">${successRate}%</span></div>
         <div class="rl-bar-wrap">
           <div class="rl-bar-fill" style="width:${successRate}%;background:${rateColor}"></div>
@@ -360,9 +367,11 @@ function rlTableHtml(rows) {
   const pageRows = rows.slice(offset, offset + RL_PAGE_SIZE);
 
   const tableRows = pageRows.map((o, i) => {
-    const statusPill = o.investigasi
-      ? `<span class="rl-pill rl-pill-invst">🔍 Investigasi</span>`
-      : `<span class="rl-pill rl-pill-lapor">⏳ Pending</span>`;
+    const statusPill = o.auto_resolved
+      ? `<span class="rl-pill rl-pill-ok">✅ Terkirim</span>`
+      : o.investigasi
+        ? `<span class="rl-pill rl-pill-invst">🔍 Investigasi</span>`
+        : `<span class="rl-pill rl-pill-lapor">⏳ Pending</span>`;
 
     return `<tr>
       <td style="font-size:.7rem;color:var(--text-3)">${offset + i + 1}</td>
@@ -408,7 +417,7 @@ function rlTableHtml(rows) {
 
 // ── Filter & Event handlers ────────────────────────────────────────────────────
 function rlFiltered() {
-  // Aktif filter: card filter takes precedence over dropdown status filter
+  // Card filter takes precedence over dropdown status filter
   const statusFilter = _rlCardFilter || _rlStatus;
   return _rlData.filter(o => {
     const lapAt = o.lapor_ekspedisi_at || o.created_at;
@@ -416,8 +425,9 @@ function rlFiltered() {
     if (_rlDateTo   && lapAt.slice(0,10) > _rlDateTo) return false;
     if (_rlCS   && o.cs_nama   !== _rlCS)   return false;
     if (_rlEksp && o.ekspedisi !== _rlEksp) return false;
-    if (statusFilter === 'investigasi' && !o.investigasi) return false;
-    if (statusFilter === 'pending'     &&  o.investigasi) return false;
+    if (statusFilter === 'investigasi' && (o.auto_resolved || !o.investigasi)) return false;
+    if (statusFilter === 'pending'     && (o.auto_resolved || o.investigasi))  return false;
+    if (statusFilter === 'terkirim'    && !o.auto_resolved)                    return false;
     return true;
   });
 }
@@ -430,9 +440,9 @@ function rlCardFilter(v) {
   _rlCardFilter = v;
   _rlStatus = '';
   _rlPage = 1;
-  // Sync dropdown
+  // Sync dropdown kalau value ada di options
   const sel = document.getElementById('rlStatusSel');
-  if (sel) sel.value = '';
+  if (sel) sel.value = ['pending','terkirim','investigasi'].includes(v) ? v : '';
   rlRender();
   // Scroll ke tabel
   setTimeout(() => document.getElementById('rlBody')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
