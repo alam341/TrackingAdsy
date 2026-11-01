@@ -11,9 +11,10 @@
 <style>
 /* ── Summary cards ────────────────────────────────────────────────── */
 .rl-summary {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 16px;
 }
-@media (max-width: 768px) { .rl-summary { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1024px) { .rl-summary { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 768px)  { .rl-summary { grid-template-columns: repeat(2, 1fr); } }
 .rl-card {
   background: var(--card); border: 1px solid var(--border);
   border-radius: 14px; padding: 16px 18px;
@@ -302,7 +303,12 @@ function rlRender() {
     <div class="rl-card clickable ${isInvst ? 'active' : ''}" onclick="rlCardFilter('investigasi')" title="Filter Investigasi">
       <div class="rl-card-label">🔍 Investigasi (Tetap Retur)</div>
       <div class="rl-card-num c-danger">${investigasi}</div>
-      <div class="rl-card-sub">${isInvst ? '✓ Difilter' : successRate !== '—' ? `Success rate ${successRate}%` : 'Klik untuk filter'}</div>
+      <div class="rl-card-sub">${isInvst ? '✓ Difilter' : 'Klik untuk filter'}</div>
+    </div>
+    <div class="rl-card">
+      <div class="rl-card-label">📈 Success Rate</div>
+      <div class="rl-card-num c-success">${successRate !== '—' ? successRate + '%' : '—'}</div>
+      <div class="rl-card-sub">${successRate !== '—' ? `${terkirim} dari ${total} berhasil` : 'Belum ada data'}</div>
     </div>
   </div>`;
 
