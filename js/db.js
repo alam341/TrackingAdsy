@@ -193,6 +193,7 @@ async function dbGetAkuisisiOrders(dateFrom, dateTo, preloadedSkuMap = null) {
       status_resi: null, status_resi_step: null, status_resi_updated_at: null,
       followup_attempts: 0, followup_responded: false, followup_courier_notified: false,
       masalah_kategori: null,
+      retur_kategori: null,
     };
   });
 
@@ -204,7 +205,7 @@ async function dbGetAkuisisiOrders(dateFrom, dateTo, preloadedSkuMap = null) {
     for (let i = 0; i < resiIds.length; i += CHUNK) chunks.push(resiIds.slice(i, i + CHUNK));
     const trackResults = await Promise.all(chunks.map(chunk =>
       _sb.from('akuisisi_orders')
-        .select('id,status_resi,status_resi_step,status_resi_updated_at,ekspedisi,cek_sl,followup_attempts,followup_responded,followup_courier_notified,status_resi_detail->>masalah_kategori,status_resi_detail->>bermasalah_since,status_resi_detail->>redeliver_attempts')
+        .select('id,status_resi,status_resi_step,status_resi_updated_at,ekspedisi,cek_sl,followup_attempts,followup_responded,followup_courier_notified,status_resi_detail->>masalah_kategori,status_resi_detail->>retur_kategori,status_resi_detail->>bermasalah_since,status_resi_detail->>redeliver_attempts')
         .in('id', chunk)
     ));
     const trackMap = {};
@@ -220,6 +221,7 @@ async function dbGetAkuisisiOrders(dateFrom, dateTo, preloadedSkuMap = null) {
       o.followup_courier_notified = t.followup_courier_notified || false;
       o.cek_sl                 = t.cek_sl                 || false;
       o.masalah_kategori       = t.masalah_kategori       || null;
+      o.retur_kategori         = t.retur_kategori         || null;
       o.bermasalah_since       = t.bermasalah_since       || null;
       o.redeliver_attempts     = t.redeliver_attempts ? parseInt(t.redeliver_attempts) : 0;
       if (t.ekspedisi) o.ekspedisi = t.ekspedisi; // prefer stored (mungkin sudah diedit manual)
