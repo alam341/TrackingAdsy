@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="css/main.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 /* ── Summary cards ────────────────────────────────────────────────── */
 .rl-summary {
@@ -256,6 +257,7 @@ function rlRenderPage() {
         <option value="terkirim">✅ Berhasil Terkirim</option>
       </select>
       <button class="rl-refresh" onclick="rlLoad()">🔄 Refresh</button>
+      <button class="rl-refresh" onclick="rlDownload()" style="background:var(--success);border-color:var(--success);color:#fff">⬇️ Download</button>
     </div>
     <div id="rlBody"><div class="rl-loading"><div class="spinner"></div>Memuat data...</div></div>
   `;
@@ -512,6 +514,59 @@ async function rlLoad() {
   } catch (e) {
     if (body) body.innerHTML = `<div class="rl-loading" style="color:var(--danger)">⚠️ Gagal: ${escapeHtml(e.message)}<br><button class="btn btn-outline btn-sm" style="margin-top:12px" onclick="rlLoad()">Coba Lagi</button></div>`;
   }
+}
+
+// ── Download Excel ─────────────────────────────────────────────────────────────
+function rlDownload() {
+  const rows = rlFiltered();
+  if (!rows.length) { showToast('Tidak ada data untuk didownload', 'info'); return; }
+
+  const statusLabel = {
+    antar_ulang:       '🔄 Antar Ulang',
+    konfirmasi_retur:  '↩️ Konfirmasi Retur',
+    investigasi:       '🔍 Investigasi',
+    terkirim:          '✅ Berhasil Terkirim',
+  };
+
+  const getStatus = o => {
+    if (o.auto_resolved)                    return statusLabel.terkirim;
+    if (o.lapor_type === 'konfirmasi_retur') return statusLabel.konfirmasi_retur;
+    if (o.investigasi)                       return statusLabel.investigasi;
+    return statusLabel.antar_ulang;
+  };
+
+  const data = rows.map((o, i) => ({
+    'No':           i + 1,
+    'Resi':         o.resi         || '',
+    'Nama Pembeli': o.nama_pembeli || '',
+    'Ekspedisi':    o.ekspedisi    || '',
+    'Kota':         o.kota_tujuan  || '',
+    'Case Undel':   o.case_undel   || '',
+    'Tgl Lapor':    o.lapor_ekspedisi_at ? new Date(o.lapor_ekspedisi_at).toLocaleDateString('id-ID') : '',
+    'Tgl Update':   (o.investigasi_at || o.lapor_ekspedisi_at) ? new Date(o.investigasi_at || o.lapor_ekspedisi_at).toLocaleDateString('id-ID') : '',
+    'Status':       getStatus(o),
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [
+    { wch: 5 }, { wch: 22 }, { wch: 22 }, { wch: 12 }, { wch: 16 },
+    { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 22 },
+  ];
+  const wb = XLSX.utils.book_new();
+
+  // Nama sheet sesuai filter aktif
+  const filterKey = _rlCardFilter || _rlStatus;
+  const sheetName = filterKey === 'investigasi' ? 'Investigasi'
+    : filterKey === 'antar_ulang'      ? 'Antar Ulang'
+    : filterKey === 'konfirmasi_retur' ? 'Konfirmasi Retur'
+    : filterKey === 'terkirim'         ? 'Berhasil Terkirim'
+    : 'Rekap Laporan';
+
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+  const tgl = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `RekabLaporan-${sheetName.replace(/\s/g,'-')}-${tgl}.xlsx`);
+  showToast(`${rows.length} baris didownload`, 'success');
 }
 
 // ── Resi detail modal ──────────────────────────────────────────────────────────
