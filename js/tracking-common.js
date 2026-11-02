@@ -39,7 +39,6 @@ const TR_BERMASALAH_KATEGORI_META = {
   LAINNYA:              { label: 'Lainnya',            icon: '❓' },
 };
 const TR_RETUR_KATEGORI_META = {
-  TOLAK_COD:            { label: 'Tolak Bayar COD',          icon: '💸' },
   DITOLAK:              { label: 'Paket Ditolak',             icon: '🚫' },
   ALAMAT_SALAH:         { label: 'Alamat Tidak Ditemukan',    icon: '📍' },
   TIDAK_BISA_DIHUBUNGI: { label: 'Tidak Bisa Dihubungi',     icon: '📵' },
