@@ -38,6 +38,15 @@ const TR_BERMASALAH_KATEGORI_META = {
   SIMPAN_GUDANG:        { label: 'Simpan di Gudang',   icon: '📦' },
   LAINNYA:              { label: 'Lainnya',            icon: '❓' },
 };
+const TR_RETUR_KATEGORI_META = {
+  TOLAK_COD:            { label: 'Tolak Bayar COD',          icon: '💸' },
+  DITOLAK:              { label: 'Paket Ditolak',             icon: '🚫' },
+  ALAMAT_SALAH:         { label: 'Alamat Tidak Ditemukan',    icon: '📍' },
+  TIDAK_BISA_DIHUBUNGI: { label: 'Tidak Bisa Dihubungi',     icon: '📵' },
+  TIDAK_ADA_ORANG:      { label: 'Tidak Ada Orang',           icon: '🚪' },
+  HABIS_BATAS:          { label: 'Habis Batas Waktu Simpan',  icon: '⏰' },
+  LAINNYA:              { label: 'Lainnya',                   icon: '❓' },
+};
 const TR_ON_PROSES_STAGES = ['MENUNGGU_RESI', 'BELUM_DICEK', 'MANUAL', 'DIKIRIM', 'KOTA_TUJUAN', 'OTW'];
 const TR_AVATAR_PALETTE = ['#4361EE', '#7B2FBE', '#06C270', '#FFB703', '#EF233C', '#0EA5E9', '#7C3AED', '#0891B2', '#65A30D', '#C026D3'];
 const MP_BADGE = { shopee: ['badge-shopee', 'Shopee'], tiktok: ['badge-tiktok', 'TikTok'], lazada: ['badge-lazada', 'Lazada'] };
@@ -160,6 +169,7 @@ function initTrackingPage(cfg) {
     filterStage: 'SEMUA',
     subFilter: null,      // sub-filter aktif saat ON_PROSES_GROUP, misal 'DIKIRIM'
     masalahFilter: null,  // sub-filter aktif saat BERMASALAH, misal 'ALAMAT_SALAH'
+    returFilter: null,    // sub-filter aktif saat RETUR, misal 'TOLAK_COD'
     agingFilter: null,    // sub-filter aging BERMASALAH, misal 'H1','H2','H3','H4+'
     cekSlFilter: false,   // filter hanya yang sudah cek SL
     belumJawabFilter: false, // filter hanya yang belum dijawab CS (cs_responded=false)
@@ -354,6 +364,7 @@ function initTrackingPage(cfg) {
       </div>
       <div id="trSubFilter"></div>
       <div id="trMasalahSubFilter"></div>
+      <div id="trReturSubFilter"></div>
       <div class="card">
         <div class="card-header">
           <div class="card-header-left"><h3>Tracking Resi ${cfg.domainLabel}</h3><div class="card-sub">Monitor status pengiriman &nbsp;·&nbsp; <span id="trLastUpdated" style="color:var(--text-3);font-size:11px">${st.lastUpdated ? 'diperbarui ' + fmtLastUpdated(st.lastUpdated) : ''}</span></div></div>
@@ -484,6 +495,7 @@ function initTrackingPage(cfg) {
     document.getElementById('trStatDelivery-pct').textContent  = pct(counts.DELIVERY);
     renderSubFilter(stageCounts);
     renderMasalahSubFilter();
+    renderReturSubFilter();
     renderAgingSubFilter();
   }
 
@@ -554,6 +566,41 @@ function initTrackingPage(cfg) {
     el.innerHTML = `<div class="tr-sub-grid">${items.join('')}</div>`;
   }
 
+  function renderReturSubFilter() {
+    const el = document.getElementById('trReturSubFilter');
+    if (!el) return;
+    if (st.filterStage !== 'RETUR') { el.innerHTML = ''; return; }
+
+    const q = (document.getElementById('trSearch')?.value || '').toLowerCase();
+    const returOrders = st.orders.filter(o => {
+      if (st.storeFilter && o.store_name !== st.storeFilter) return false;
+      if (st.ekspedisiFilter && o.ekspedisi !== st.ekspedisiFilter) return false;
+      if (st.csFilter.size && !st.csFilter.has(o.cs_nama)) return false;
+      if (st.produkFilter && (o.produk || '').split(' + ')[0].trim() !== st.produkFilter) return false;
+      if (q && !(String(o.id).toLowerCase().includes(q) || (o.nama||o.buyer||'').toLowerCase().includes(q) || (o.produk||'').toLowerCase().includes(q))) return false;
+      return trEffectiveStage(o) === 'RETUR';
+    });
+
+    const kategorCounts = {};
+    returOrders.forEach(o => {
+      const k = o.retur_kategori || 'LAINNYA';
+      kategorCounts[k] = (kategorCounts[k] || 0) + 1;
+    });
+
+    const items = Object.entries(TR_RETUR_KATEGORI_META).map(([key, meta]) => {
+      const count = kategorCounts[key] || 0;
+      const isActive = st.returFilter === key;
+      return `
+        <div class="tr-sub-card ${isActive ? 'active' : ''}" onclick="trClickReturSub('${key}')">
+          <div class="tr-sub-icon">${meta.icon}</div>
+          <div class="tr-sub-count">${count}</div>
+          <div class="tr-sub-label">${meta.label}</div>
+        </div>`;
+    });
+
+    el.innerHTML = `<div class="tr-sub-grid">${items.join('')}</div>`;
+  }
+
   const AGING_BUCKETS = [
     { key: 'H1', label: 'H+1', icon: '🟢', test: h => h === 1 },
     { key: 'H2', label: 'H+2', icon: '🟡', test: h => h === 2 },
@@ -598,7 +645,7 @@ function initTrackingPage(cfg) {
     });
 
     const cekSlCount      = bermasalahOrders.filter(o => o.cek_sl).length;
-    const belumJawabCount = bermasalahOrders.filter(o => (o._fuCount || 0) >= 1 && !o._csResponded).length;
+    const belumJawabCount = bermasalahOrders.filter(o => !o._csResponded).length;
     const sepStyle  = 'align-self:center;width:1px;height:18px;background:var(--border);margin:0 2px';
     const cekSlStyle     = st.cekSlFilter     ? '' : 'border-color:var(--success,#06C270);color:var(--success,#06C270)';
     const belumJawabStyle = st.belumJawabFilter ? '' : 'border-color:var(--danger,#EF233C);color:var(--danger,#EF233C)';
@@ -615,6 +662,7 @@ function initTrackingPage(cfg) {
     st.filterStage = key;
     st.subFilter = null;
     st.masalahFilter = null;
+    st.returFilter = null;
     st.agingFilter = null;
     st.cekSlFilter = false;
     st.belumJawabFilter = false;
@@ -655,6 +703,12 @@ function initTrackingPage(cfg) {
     st.page = 1;
     renderMasalahSubFilter();
     renderAgingSubFilter();
+    applyFilter();
+  };
+  window.trClickReturSub = (key) => {
+    st.returFilter = st.returFilter === key ? null : key;
+    st.page = 1;
+    renderReturSubFilter();
     applyFilter();
   };
   window.trSetMpFilter = (val) => { st.mpFilter = val; st.storeFilter = ''; st.page = 1; load(); };
@@ -727,6 +781,11 @@ function initTrackingPage(cfg) {
         if (!(o.masalah_kategori === st.masalahFilter ||
               (!o.masalah_kategori && st.masalahFilter === 'LAINNYA'))) return false;
       }
+      // Sub-filter kategori retur: hanya aktif saat tab RETUR
+      if (st.filterStage === 'RETUR' && st.returFilter) {
+        if (!(o.retur_kategori === st.returFilter ||
+              (!o.retur_kategori && st.returFilter === 'LAINNYA'))) return false;
+      }
       // Sub-filter aging: hanya aktif saat tab BERMASALAH
       if (st.filterStage === 'BERMASALAH' && st.agingFilter) {
         const bucket = AGING_BUCKETS.find(b => b.key === st.agingFilter);
@@ -735,9 +794,7 @@ function initTrackingPage(cfg) {
       // Filter Cek SL
       if (st.filterStage === 'BERMASALAH' && st.cekSlFilter && !o.cek_sl) return false;
       // Filter Belum Dijawab CS
-      if (st.filterStage === 'BERMASALAH' && st.belumJawabFilter) {
-        if (!((o._fuCount || 0) >= 1 && !o._csResponded)) return false;
-      }
+      if (st.filterStage === 'BERMASALAH' && st.belumJawabFilter && o._csResponded) return false;
       return true;
     });
     // Tab Bermasalah: otomatis urutin yang paling belum ditindak duluan (percobaan/direspon/
@@ -888,6 +945,7 @@ function initTrackingPage(cfg) {
               ${o.cs_nama ? `<span class="badge badge-primary">👤 ${escapeHtml(o.cs_nama)}</span>` : ''}
               ${followupBadge}
               ${stage === 'BERMASALAH' && o.masalah_kategori ? `<span class="badge badge-danger">${TR_BERMASALAH_KATEGORI_META[o.masalah_kategori]?.icon || '❓'} ${TR_BERMASALAH_KATEGORI_META[o.masalah_kategori]?.label || o.masalah_kategori}</span>` : ''}
+              ${stage === 'RETUR' && o.retur_kategori ? `<span class="badge badge-warning">${TR_RETUR_KATEGORI_META[o.retur_kategori]?.icon || '❓'} ${TR_RETUR_KATEGORI_META[o.retur_kategori]?.label || o.retur_kategori}</span>` : ''}
               ${o.redeliver_attempts > 0 ? `<span class="badge badge-warning">🔄 Percobaan pengiriman ulang ke-${o.redeliver_attempts}</span>` : ''}
             </div>
             <div class="tr-produk" title="${escapeHtml(o.produk || '-')}">${escapeHtml(o.produk || '-')} × ${o.qty || 1}</div>
