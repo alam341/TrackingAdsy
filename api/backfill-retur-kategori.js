@@ -14,12 +14,13 @@ module.exports = async function handler(req, res) {
   }
 
   // Ambil semua RETUR order yang belum punya retur_kategori di status_resi_detail
+  // Query param opsional: ?from=2026-10-01&to=2026-10-31&offset=0
+  const fromDate = req.query?.from   || '2026-10-01';
+  const toDate   = req.query?.to     || '2026-10-31';
+  const offset   = parseInt(req.query?.offset || '0', 10);
+
   let rows;
   try {
-    // Query param opsional: ?from=2026-10-01&to=2026-10-31&offset=0
-    const fromDate = req.query?.from   || '2026-10-01';
-    const toDate   = req.query?.to     || '2026-10-31';
-    const offset   = parseInt(req.query?.offset || '0', 10);
 
     rows = await sbFetch(
       `akuisisi_orders` +
