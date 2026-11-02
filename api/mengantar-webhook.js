@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const { sbFetch } = require('../lib/supabase-rest');
 const { insertRoomWork } = require('../lib/room-work-helper');
 const { checkResiAuto } = require('../lib/tracking-router');
+const { notifInvestigasi } = require('../lib/notif-wa');
 
 // Matikan body parser bawaan Vercel — kita butuh raw body untuk verifikasi HMAC
 // (parse ulang JSON → bytes beda → signature tidak cocok)
@@ -270,13 +271,20 @@ module.exports = async function handler(req, res) {
 
     // 10. Auto investigasi kalau paket RETUR dan sudah lapor ekspedisi
     if (stage === 'RETUR') {
-      await sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}&lapor_ekspedisi=eq.true&investigasi=eq.false&select=id`)
-        .then(rows => {
+      await sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}&lapor_ekspedisi=eq.true&investigasi=eq.false&select=id,ekspedisi,case_undel`)
+        .then(async rows => {
           if (!rows?.length) return;
-          return sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}`, {
+          const rwRow = rows[0];
+          await sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}`, {
             method: 'PATCH',
             body: JSON.stringify({ investigasi: true, investigasi_at: now }),
           });
+          // Kirim notif ke WA group investigasi
+          notifInvestigasi({
+            resi:      cnote_no,
+            ekspedisi: rwRow.ekspedisi   || ekspedisi || '-',
+            caseUndel: rwRow.case_undel  || '-',
+          }).catch(e => console.error('[notif] Investigasi group gagal:', e.message));
         })
         .catch(e => console.error('[room-work] Auto investigasi gagal:', e.message));
     }
