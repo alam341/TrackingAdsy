@@ -16,9 +16,10 @@ module.exports = async function handler(req, res) {
   // Ambil semua RETUR order yang belum punya retur_kategori di status_resi_detail
   let rows;
   try {
-    // Query param opsional: ?from=2026-10-01&to=2026-10-31
-    const fromDate = req.query?.from || '2026-10-01';
-    const toDate   = req.query?.to   || '2026-10-31';
+    // Query param opsional: ?from=2026-10-01&to=2026-10-31&offset=0
+    const fromDate = req.query?.from   || '2026-10-01';
+    const toDate   = req.query?.to     || '2026-10-31';
+    const offset   = parseInt(req.query?.offset || '0', 10);
 
     rows = await sbFetch(
       `akuisisi_orders` +
@@ -26,7 +27,9 @@ module.exports = async function handler(req, res) {
       `&status_resi=eq.RETUR` +
       `&order_date=gte.${fromDate}` +
       `&order_date=lte.${toDate}` +
-      `&limit=${ROWS_PER_RUN}`
+      `&order=id.asc` +
+      `&limit=${ROWS_PER_RUN}` +
+      `&offset=${offset}`
     );
   } catch (e) {
     return res.status(500).json({ error: 'Gagal fetch: ' + e.message });
@@ -59,14 +62,17 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  const hasMore = (rows?.length || 0) >= ROWS_PER_RUN;
   return res.json({
     ok: true,
+    offset,
     total: rows?.length || 0,
     updated,
     skipped,
     failed,
-    message: updated > 0
-      ? `${updated} order berhasil di-backfill. Kalau masih ada sisanya, panggil endpoint ini lagi.`
-      : 'Tidak ada order baru yang perlu di-backfill.',
+    nextOffset: hasMore ? offset + ROWS_PER_RUN : null,
+    message: hasMore
+      ? `Lanjut ke offset berikutnya: ?offset=${offset + ROWS_PER_RUN}`
+      : 'Semua order sudah diproses.',
   });
 };
