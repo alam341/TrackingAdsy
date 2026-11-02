@@ -120,6 +120,8 @@
 .rw-btn.done-bales    { background: #06C270; color: #fff; border-color: #06C270; }
 .rw-btn.done-lapor    { background: var(--primary); color: #fff; border-color: var(--primary); }
 .rw-btn.done-invst    { background: #7B2FBE; color: #fff; border-color: #7B2FBE; }
+.rw-btn.rw-btn-kretur { border-color: #7B2FBE; color: #7B2FBE; }
+.rw-btn.rw-btn-kretur:hover { background: #7B2FBE; color: #fff; }
 .rw-btn.loading       { opacity: .6; pointer-events: none; }
 
 /* ── Empty & loading ──────────────────────────────────────────────── */
@@ -524,13 +526,19 @@ function rwRenderTable() {
 
     const fuStatusCol = _rwTab === 'aktif' ? fuBadge : '';
 
-    // Aksi buttons — Investigasi hanya muncul di tab Lapor Ekspedisi
+    // Aksi buttons
     const btnBales = o.cs_responded
       ? `<button class="rw-btn done-bales" disabled>✅ CS Bales</button>`
       : `<button class="rw-btn" id="btn-bales-${o.id}" onclick="rwAksi(${o.id},'cs_responded')">✅ CS Bales</button>`;
-    const btnLapor = o.lapor_ekspedisi
-      ? `<button class="rw-btn done-lapor" disabled>📤 Sudah Lapor</button>`
-      : `<button class="rw-btn" id="btn-lapor-${o.id}" onclick="rwAksi(${o.id},'lapor_ekspedisi')">📤 Lapor Eksp.</button>`;
+    let btnLapor;
+    if (o.lapor_ekspedisi) {
+      btnLapor = o.lapor_type === 'konfirmasi_retur'
+        ? `<button class="rw-btn done-lapor" disabled>↩️ Konfirm. Retur</button>`
+        : `<button class="rw-btn done-lapor" disabled>🔄 Antar Ulang</button>`;
+    } else {
+      btnLapor = `<button class="rw-btn" id="btn-antar-${o.id}" onclick="rwLaporAksi(${o.id},'antar_ulang')">🔄 Antar Ulang</button>`
+               + `<button class="rw-btn rw-btn-kretur" id="btn-kretur-${o.id}" onclick="rwLaporAksi(${o.id},'konfirmasi_retur')">↩️ Retur</button>`;
+    }
     const btnInvst = '';
 
     return `<tr>
@@ -603,9 +611,7 @@ function rwRenderTable() {
 
 // ── Aksi (centang) ─────────────────────────────────────────────────────────────
 async function rwAksi(id, field) {
-  const btnId = field === 'cs_responded'  ? `btn-bales-${id}`
-              : field === 'lapor_ekspedisi' ? `btn-lapor-${id}`
-              : `btn-invst-${id}`;
+  const btnId = field === 'cs_responded' ? `btn-bales-${id}` : `btn-invst-${id}`;
   const btn = document.getElementById(btnId);
   if (btn) { btn.classList.add('loading'); btn.textContent = '⏳...'; }
 
@@ -617,14 +623,42 @@ async function rwAksi(id, field) {
     });
     if (!r.ok) throw new Error((await r.json()).error || 'Gagal update');
 
-    // Update local data
     const row = _rwData.find(o => o.id === id);
     if (row) {
       row[field] = true;
       row[field + '_at'] = new Date().toISOString();
     }
 
-    const label = field === 'cs_responded' ? 'CS Bales' : field === 'lapor_ekspedisi' ? 'Lapor Ekspedisi' : 'Investigasi';
+    showToast(`${field === 'cs_responded' ? 'CS Bales' : 'Investigasi'} dicatat`, 'success');
+    rwRender();
+  } catch (e) {
+    if (btn) { btn.classList.remove('loading'); btn.textContent = '⚠️ Gagal'; }
+    showToast('Gagal: ' + e.message, 'error');
+  }
+}
+
+// ── Lapor Ekspedisi: Antar Ulang / Konfirmasi Retur ───────────────────────────
+async function rwLaporAksi(id, lapor_type) {
+  const btnId = lapor_type === 'antar_ulang' ? `btn-antar-${id}` : `btn-kretur-${id}`;
+  const btn = document.getElementById(btnId);
+  if (btn) { btn.classList.add('loading'); btn.textContent = '⏳...'; }
+
+  try {
+    const r = await fetch('/api/room-work', {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ id, lapor_ekspedisi: true, lapor_type }),
+    });
+    if (!r.ok) throw new Error((await r.json()).error || 'Gagal update');
+
+    const row = _rwData.find(o => o.id === id);
+    if (row) {
+      row.lapor_ekspedisi    = true;
+      row.lapor_ekspedisi_at = new Date().toISOString();
+      row.lapor_type         = lapor_type;
+    }
+
+    const label = lapor_type === 'antar_ulang' ? 'Antar Ulang' : 'Konfirmasi Retur';
     showToast(`${label} dicatat`, 'success');
     rwRender();
   } catch (e) {
