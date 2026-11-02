@@ -1,7 +1,7 @@
 // api/room-work.js
 // GET   /api/room-work?tab=aktif|bales|lapor|investigasi|semua
 // POST  /api/room-work  body: { resi: [...] }  → batch lookup fu_count+cs_responded
-// PATCH /api/room-work  body: { id, ...fields }
+// PATCH /api/room-work  body: { id, lapor_ekspedisi, lapor_type, ... }
 
 const { sbFetch } = require('../lib/supabase-rest');
 
@@ -33,7 +33,7 @@ module.exports = async function handler(req, res) {
         const m     = parseInt(req.query.month || now.getMonth() + 1); // 1-12
         const from  = new Date(y, m - 1, 1).toISOString();
         const to    = new Date(y, m, 1).toISOString();
-        const cols  = 'resi,cs_nama,cs_no_wa,nama_pembeli,hp_pembeli,produk,ekspedisi,kota_tujuan,case_undel,fu_count,fu_info_at,fu_1_at,fu_2_at,fu_3_at,cs_responded,cs_responded_at,lapor_ekspedisi,lapor_ekspedisi_at,created_at';
+        const cols  = 'resi,cs_nama,cs_no_wa,nama_pembeli,hp_pembeli,produk,ekspedisi,kota_tujuan,case_undel,fu_count,fu_info_at,fu_1_at,fu_2_at,fu_3_at,cs_responded,cs_responded_at,lapor_ekspedisi,lapor_ekspedisi_at,lapor_type,created_at';
         const rwData = await sbFetch(
           `room_work?select=${cols}&created_at=gte.${from}&created_at=lt.${to}&order=created_at.desc&limit=2000`
         );
