@@ -14,6 +14,9 @@
     },
     "api/backfill-tracking.js": {
       "maxDuration": 60
+    },
+    "api/backfill-retur-kategori.js": {
+      "maxDuration": 60
     }
   }
 }
