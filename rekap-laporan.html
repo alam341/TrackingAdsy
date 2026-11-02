@@ -438,7 +438,7 @@ function rlTableHtml(rows) {
 function rlFiltered() {
   // Card filter takes precedence over dropdown status filter
   const statusFilter = _rlCardFilter || _rlStatus;
-  return _rlData.filter(o => {
+  const rows = _rlData.filter(o => {
     const lapAt = o.lapor_ekspedisi_at || o.created_at;
     if (_rlDateFrom && lapAt < _rlDateFrom) return false;
     if (_rlDateTo   && lapAt.slice(0,10) > _rlDateTo) return false;
@@ -449,6 +449,12 @@ function rlFiltered() {
     if (statusFilter === 'investigasi')       { if (!o.investigasi || o.auto_resolved || o.lapor_type === 'konfirmasi_retur') return false; }
     if (statusFilter === 'terkirim')          { if (!o.auto_resolved) return false; }
     return true;
+  });
+  // Urutkan terbaru ke terlama berdasarkan tanggal paling relevan
+  return rows.sort((a, b) => {
+    const dateA = a.investigasi_at || a.lapor_ekspedisi_at || a.created_at || '';
+    const dateB = b.investigasi_at || b.lapor_ekspedisi_at || b.created_at || '';
+    return dateB.localeCompare(dateA);
   });
 }
 
