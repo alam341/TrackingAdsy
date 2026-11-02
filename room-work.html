@@ -120,8 +120,22 @@
 .rw-btn.done-bales    { background: #06C270; color: #fff; border-color: #06C270; }
 .rw-btn.done-lapor    { background: var(--primary); color: #fff; border-color: var(--primary); }
 .rw-btn.done-invst    { background: #7B2FBE; color: #fff; border-color: #7B2FBE; }
-.rw-btn.rw-btn-kretur { border-color: #7B2FBE; color: #7B2FBE; }
-.rw-btn.rw-btn-kretur:hover { background: #7B2FBE; color: #fff; }
+.rw-lapor-wrap { position: relative; display: inline-block; }
+.rw-lapor-menu {
+  display: none; position: absolute; bottom: calc(100% + 6px); left: 0;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 9px; box-shadow: 0 6px 20px rgba(0,0,0,.35);
+  min-width: 160px; z-index: 99; overflow: hidden;
+}
+.rw-lapor-menu.open { display: block; }
+.rw-lapor-item {
+  display: block; width: 100%; padding: 9px 14px; text-align: left;
+  font-size: .78rem; font-weight: 600; cursor: pointer; border: none;
+  background: transparent; color: var(--text-1); transition: background .12s;
+}
+.rw-lapor-item:hover { background: var(--hover-bg); }
+.rw-lapor-item.item-retur { color: #a855f7; }
+.rw-lapor-item.item-retur:hover { background: #3b1f60; }
 .rw-btn.loading       { opacity: .6; pointer-events: none; }
 
 /* ── Empty & loading ──────────────────────────────────────────────── */
@@ -534,10 +548,15 @@ function rwRenderTable() {
     if (o.lapor_ekspedisi) {
       btnLapor = o.lapor_type === 'konfirmasi_retur'
         ? `<button class="rw-btn done-lapor" disabled>↩️ Konfirm. Retur</button>`
-        : `<button class="rw-btn done-lapor" disabled>🔄 Antar Ulang</button>`;
+        : `<button class="rw-btn done-lapor" disabled>📤 Antar Ulang</button>`;
     } else {
-      btnLapor = `<button class="rw-btn" id="btn-antar-${o.id}" onclick="rwLaporAksi(${o.id},'antar_ulang')">🔄 Antar Ulang</button>`
-               + `<button class="rw-btn rw-btn-kretur" id="btn-kretur-${o.id}" onclick="rwLaporAksi(${o.id},'konfirmasi_retur')">↩️ Retur</button>`;
+      btnLapor = `<div class="rw-lapor-wrap">
+        <button class="rw-btn" id="btn-lapor-${o.id}" onclick="rwToggleLaporMenu(${o.id}, event)">📤 Lapor Eksp. ▾</button>
+        <div class="rw-lapor-menu" id="lapor-menu-${o.id}">
+          <button class="rw-lapor-item" onclick="rwLaporAksi(${o.id},'antar_ulang')">🔄 Antar Ulang</button>
+          <button class="rw-lapor-item item-retur" onclick="rwLaporAksi(${o.id},'konfirmasi_retur')">↩️ Konfirmasi Retur</button>
+        </div>
+      </div>`;
     }
     const btnInvst = '';
 
@@ -636,6 +655,21 @@ async function rwAksi(id, field) {
     showToast('Gagal: ' + e.message, 'error');
   }
 }
+
+// ── Toggle dropdown Lapor Ekspedisi ───────────────────────────────────────────
+function rwToggleLaporMenu(id, e) {
+  e.stopPropagation();
+  const menu = document.getElementById(`lapor-menu-${id}`);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  // Tutup semua menu lain dulu
+  document.querySelectorAll('.rw-lapor-menu.open').forEach(m => m.classList.remove('open'));
+  if (!isOpen) menu.classList.add('open');
+}
+// Klik di luar → tutup semua menu
+document.addEventListener('click', () => {
+  document.querySelectorAll('.rw-lapor-menu.open').forEach(m => m.classList.remove('open'));
+});
 
 // ── Lapor Ekspedisi: Antar Ulang / Konfirmasi Retur ───────────────────────────
 async function rwLaporAksi(id, lapor_type) {
