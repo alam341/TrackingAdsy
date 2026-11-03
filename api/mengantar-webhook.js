@@ -282,7 +282,7 @@ module.exports = async function handler(req, res) {
           // Kirim notif ke WA group investigasi
           await notifInvestigasi({
             resi:      cnote_no,
-            ekspedisi: rwRow.ekspedisi   || ekspedisi || '-',
+            ekspedisi: rwRow.ekspedisi   || normCourier(courier) || '-',
             caseUndel: rwRow.case_undel  || '-',
           }).catch(e => console.error('[notif] Investigasi group gagal:', e.message));
         })
