@@ -706,8 +706,9 @@ function rwCloseLaporModal() {
 }
 function rwLaporPilih(lapor_type) {
   if (!_rwLaporActiveId) return;
+  const id = _rwLaporActiveId;
   rwCloseLaporModal();
-  rwLaporAksi(_rwLaporActiveId, lapor_type);
+  rwLaporAksi(id, lapor_type);
 }
 
 // ── Lapor Ekspedisi: Antar Ulang / Konfirmasi Retur ───────────────────────────
