@@ -104,6 +104,8 @@
 .rl-pill-invst  { background: rgba(123,47,190,.12); color: #7B2FBE; }
 .rl-pill-lapor  { background: rgba(67,97,238,.1);   color: var(--primary); }
 .rl-pill-ok     { background: rgba(6,194,112,.1);   color: var(--success); }
+.rl-notif-ok    { font-size: .62rem; font-weight: 700; color: var(--success); margin-top: 2px; }
+.rl-notif-fail  { font-size: .62rem; font-weight: 700; color: var(--danger); margin-top: 2px; }
 
 .rl-loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 48px; color: var(--text-3); }
 .rl-pagination { display: flex; align-items: center; gap: 10px; justify-content: center; padding: 14px 0 4px; }
@@ -384,12 +386,17 @@ function rlTableHtml(rows) {
   const pageRows = rows.slice(offset, offset + RL_PAGE_SIZE);
 
   const tableRows = pageRows.map((o, i) => {
+    const notifLabel = o.investigasi && !o.auto_resolved
+      ? (o.notif_investigasi_sent === true  ? `<div class="rl-notif-ok">✅ Notif Terkirim</div>`
+       : o.notif_investigasi_sent === false ? `<div class="rl-notif-fail">❌ Notif Gagal</div>`
+       : '')
+      : '';
     const statusPill = o.auto_resolved
       ? `<span class="rl-pill rl-pill-ok">✅ Terkirim</span>`
       : o.lapor_type === 'konfirmasi_retur'
         ? `<span class="rl-pill" style="background:#3b1f60;color:#c4b5fd">↩️ Konfirm. Retur</span>`
         : o.investigasi
-          ? `<span class="rl-pill rl-pill-invst">🔍 Investigasi</span>`
+          ? `<span class="rl-pill rl-pill-invst">🔍 Investigasi</span>${notifLabel}`
           : `<span class="rl-pill rl-pill-lapor">🔄 Antar Ulang</span>`;
 
     return `<tr>
