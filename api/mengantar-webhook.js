@@ -26,6 +26,8 @@ const STATUS_MAP = {
   'INBOUND PROCESS':        'DIKIRIM',
   'OUTBOUND PROCESS':       'DIKIRIM',
   'IN TRANSIT':             'DIKIRIM',
+  'ORIGIN GATEWAY':         'DIKIRIM',
+  'DESTINATION GATEWAY':    'DIKIRIM',
   'WITH DELIVERY COURIER':  'OTW',
   'ON DELIVERY':            'OTW',
   'DEL':                    'OTW',
