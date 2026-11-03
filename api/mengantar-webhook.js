@@ -275,16 +275,22 @@ module.exports = async function handler(req, res) {
         .then(async rows => {
           if (!rows?.length) return;
           const rwRow = rows[0];
+          // Kirim notif ke WA group investigasi
+          let notifSent = false;
+          try {
+            await notifInvestigasi({
+              resi:      cnote_no,
+              ekspedisi: rwRow.ekspedisi   || normCourier(courier) || '-',
+              caseUndel: rwRow.case_undel  || '-',
+            });
+            notifSent = true;
+          } catch (e) {
+            console.error('[notif] Investigasi group gagal:', e.message);
+          }
           await sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}`, {
             method: 'PATCH',
-            body: JSON.stringify({ investigasi: true, investigasi_at: now }),
+            body: JSON.stringify({ investigasi: true, investigasi_at: now, notif_investigasi_sent: notifSent }),
           });
-          // Kirim notif ke WA group investigasi
-          await notifInvestigasi({
-            resi:      cnote_no,
-            ekspedisi: rwRow.ekspedisi   || normCourier(courier) || '-',
-            caseUndel: rwRow.case_undel  || '-',
-          }).catch(e => console.error('[notif] Investigasi group gagal:', e.message));
         })
         .catch(e => console.error('[room-work] Auto investigasi gagal:', e.message));
     }
