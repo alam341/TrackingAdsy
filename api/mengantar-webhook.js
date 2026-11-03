@@ -280,7 +280,7 @@ module.exports = async function handler(req, res) {
             body: JSON.stringify({ investigasi: true, investigasi_at: now }),
           });
           // Kirim notif ke WA group investigasi
-          notifInvestigasi({
+          await notifInvestigasi({
             resi:      cnote_no,
             ekspedisi: rwRow.ekspedisi   || ekspedisi || '-',
             caseUndel: rwRow.case_undel  || '-',
