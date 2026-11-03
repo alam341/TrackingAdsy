@@ -1,4 +1,5 @@
 {
+  "runtime": "nodejs20.x",
   "functions": {
     "api/tracking-check.js": {
       "maxDuration": 30
