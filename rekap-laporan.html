@@ -107,6 +107,30 @@
 .rl-notif-ok    { font-size: .62rem; font-weight: 700; color: var(--success); margin-top: 2px; }
 .rl-notif-fail  { font-size: .62rem; font-weight: 700; color: var(--danger); margin-top: 2px; }
 
+/* ── Bukti SS thumbnail ──────────────────────────────────────────── */
+.rl-ss-thumb {
+  width: 44px; height: 44px; object-fit: cover; border-radius: 6px;
+  border: 1px solid var(--border); cursor: zoom-in; transition: opacity .15s;
+  display: block;
+}
+.rl-ss-thumb:hover { opacity: .8; }
+.rl-ss-none { font-size: .68rem; color: var(--text-3); }
+
+/* ── Lightbox ────────────────────────────────────────────────────── */
+.rl-lb-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 2000;
+  display: none; align-items: center; justify-content: center; padding: 20px;
+  cursor: zoom-out;
+}
+.rl-lb-overlay.open { display: flex; }
+.rl-lb-overlay img  { max-width: 100%; max-height: 90vh; border-radius: 10px; object-fit: contain; cursor: default; }
+.rl-lb-close {
+  position: absolute; top: 16px; right: 20px; background: rgba(255,255,255,.15);
+  border: none; color: #fff; font-size: 1.6rem; line-height: 1; padding: 4px 10px;
+  border-radius: 8px; cursor: pointer;
+}
+.rl-lb-close:hover { background: rgba(255,255,255,.25); }
+
 .rl-loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 48px; color: var(--text-3); }
 .rl-pagination { display: flex; align-items: center; gap: 10px; justify-content: center; padding: 14px 0 4px; }
 
@@ -187,6 +211,12 @@
 <div id="header-slot"></div>
 <div class="main-content">
   <div class="page" id="pageContent"></div>
+</div>
+
+<!-- Lightbox bukti SS -->
+<div id="rlLbOverlay" class="rl-lb-overlay" onclick="rlCloseLb()">
+  <button class="rl-lb-close" onclick="rlCloseLb()">×</button>
+  <img id="rlLbImg" src="" alt="Bukti SS" onclick="event.stopPropagation()">
 </div>
 
 <!-- Modal riwayat pengiriman resi -->
@@ -399,6 +429,11 @@ function rlTableHtml(rows) {
           ? `<span class="rl-pill rl-pill-invst">🔍 Investigasi</span>${notifLabel}`
           : `<span class="rl-pill rl-pill-lapor">🔄 Antar Ulang</span>`;
 
+    const ssUrl = o.cs_log_screenshot_url;
+    const ssCell = ssUrl
+      ? `<img class="rl-ss-thumb" src="${escapeHtml(ssUrl)}" alt="Bukti" onclick="rlOpenLb('${escapeHtml(ssUrl)}')" loading="lazy">`
+      : `<span class="rl-ss-none">—</span>`;
+
     return `<tr>
       <td style="font-size:.7rem;color:var(--text-3)">${offset + i + 1}</td>
       <td><span class="rl-resi-link" data-resi="${escapeHtml(o.resi || '')}" onclick="rlOpenResi(this.dataset.resi)">${escapeHtml(o.resi || '—')}</span></td>
@@ -407,6 +442,7 @@ function rlTableHtml(rows) {
       <td style="font-size:.78rem">${escapeHtml(o.ekspedisi || '—')}</td>
       <td style="font-size:.78rem">${escapeHtml(o.kota_tujuan || '—')}</td>
       <td style="font-size:.75rem;color:var(--danger);font-weight:600">${escapeHtml(o.case_undel || '—')}</td>
+      <td>${ssCell}</td>
       <td style="font-size:.75rem;color:var(--text-3)">${fmtTgl(o.lapor_ekspedisi_at)}</td>
       <td style="font-size:.75rem;color:var(--text-3)">${fmtTgl(o.investigasi_at || o.lapor_ekspedisi_at) || '—'}</td>
       <td>${statusPill}</td>
@@ -432,6 +468,7 @@ function rlTableHtml(rows) {
         <thead><tr>
           <th>#</th><th>Resi</th><th>Nama Pembeli</th><th>CS</th>
           <th>Ekspedisi</th><th>Kota</th><th>Case Undel</th>
+          <th>Bukti CS</th>
           <th>Tgl Lapor</th><th>Tgl Update</th><th>Status</th>
         </tr></thead>
         <tbody>${tableRows}</tbody>
@@ -581,6 +618,15 @@ function rlDownload() {
   showToast(`${rows.length} baris didownload`, 'success');
 }
 
+// ── Lightbox bukti SS ──────────────────────────────────────────────────────────
+function rlOpenLb(url) {
+  document.getElementById('rlLbImg').src = url;
+  document.getElementById('rlLbOverlay').classList.add('open');
+}
+function rlCloseLb() {
+  document.getElementById('rlLbOverlay').classList.remove('open');
+}
+
 // ── Resi detail modal ──────────────────────────────────────────────────────────
 function rlCloseResiModal() {
   document.getElementById('rlResiOverlay').classList.remove('open');
@@ -696,9 +742,9 @@ async function rlCekResi(resi) {
   }
 }
 
-// Keyboard: ESC tutup modal
+// Keyboard: ESC tutup modal / lightbox
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') rlCloseResiModal();
+  if (e.key === 'Escape') { rlCloseLb(); rlCloseResiModal(); }
 });
 
 // ── Init ───────────────────────────────────────────────────────────────────────
