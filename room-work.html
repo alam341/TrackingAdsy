@@ -527,7 +527,7 @@ function rwGetTabRows() {
   if (_rwTab === 'aktif')                    rows = rows.filter(o => !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi && !o.auto_resolved);
   else if (_rwTab === 'fu_info')             rows = rows.filter(o => o.fu_count === 1 && !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi && !o.auto_resolved);
   else if (_rwTab === 'fu_1')               rows = rows.filter(o => o.fu_count === 2 && !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi && !o.auto_resolved);
-  else if (_rwTab === 'tidak_bales')         rows = rows.filter(o => o.fu_count >= 3 && !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi && !o.auto_resolved);
+  else if (_rwTab === 'tidak_bales')         rows = rows.filter(o => o.fu_count >= 4 && !o.cs_responded && !o.lapor_ekspedisi && !o.investigasi && !o.auto_resolved);
   else if (_rwTab === 'bales')               rows = rows.filter(o => o.cs_responded);
   else if (_rwTab === 'lapor')               rows = rows.filter(o => o.lapor_ekspedisi);
   else if (_rwTab === 'investigasi')         rows = rows.filter(o => o.investigasi);
