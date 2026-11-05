@@ -278,29 +278,55 @@ module.exports = async function handler(req, res) {
     }
 
     // 10. Auto investigasi kalau paket RETUR dan sudah lapor ekspedisi
+    // Update investigasi=true DULU (atomic) — cegah race condition double notif
+    // kalau Mengantar kirim 2 webhook RETUR bersamaan. Hanya webhook pertama yang
+    // berhasil update (rows > 0) yang lanjut kirim notif.
     if (stage === 'RETUR') {
-      await sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}&lapor_ekspedisi=eq.true&investigasi=eq.false&select=id,ekspedisi,case_undel`)
-        .then(async rows => {
-          if (!rows?.length) return;
-          const rwRow = rows[0];
-          // Kirim notif ke WA group investigasi
-          let notifSent = false;
-          try {
-            await notifInvestigasi({
-              resi:      cnote_no,
-              ekspedisi: rwRow.ekspedisi   || normCourier(courier) || '-',
-              caseUndel: rwRow.case_undel  || '-',
-            });
-            notifSent = true;
-          } catch (e) {
-            console.error('[notif] Investigasi group gagal:', e.message);
-          }
-          await sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}`, {
+      try {
+        // Ambil data row sebelum update (butuh ekspedisi + case_undel untuk notif)
+        const rwRows = await sbFetch(
+          `room_work?resi=eq.${encodeURIComponent(cnote_no)}&lapor_ekspedisi=eq.true&investigasi=eq.false&select=id,ekspedisi,case_undel`
+        );
+        if (!rwRows?.length) return; // belum lapor atau sudah diproses
+        const rwRow = rwRows[0];
+
+        // Atomic update — set investigasi=true dengan filter investigasi=eq.false
+        // Pakai return=representation supaya tahu apakah ada rows yang ter-update
+        const updated = await sbFetch(
+          `room_work?resi=eq.${encodeURIComponent(cnote_no)}&investigasi=eq.false`,
+          {
             method: 'PATCH',
-            body: JSON.stringify({ investigasi: true, investigasi_at: now, notif_investigasi_sent: notifSent }),
+            headers: { Prefer: 'return=representation' },
+            body: JSON.stringify({ investigasi: true, investigasi_at: now }),
+          }
+        );
+        // Kalau updated kosong → webhook lain sudah proses duluan → skip
+        if (!updated?.length) {
+          console.log(`[webhook] ${cnote_no} investigasi sudah diproses webhook lain — skip`);
+          return;
+        }
+
+        // Kirim notif hanya kalau kita yang berhasil update
+        let notifSent = false;
+        try {
+          await notifInvestigasi({
+            resi:      cnote_no,
+            ekspedisi: rwRow.ekspedisi  || normCourier(courier) || '-',
+            caseUndel: rwRow.case_undel || '-',
           });
-        })
-        .catch(e => console.error('[room-work] Auto investigasi gagal:', e.message));
+          notifSent = true;
+        } catch (e) {
+          console.error('[notif] Investigasi group gagal:', e.message);
+        }
+        // Simpan status notif
+        await sbFetch(`room_work?resi=eq.${encodeURIComponent(cnote_no)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ notif_investigasi_sent: notifSent }),
+        }).catch(e => console.error('[room-work] Update notif_sent gagal:', e.message));
+
+      } catch (e) {
+        console.error('[room-work] Auto investigasi gagal:', e.message);
+      }
     }
 
     res.status(200).json({ ok: true, resi: cnote_no, stage });
