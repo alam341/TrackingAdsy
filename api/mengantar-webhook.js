@@ -207,14 +207,23 @@ module.exports = async function handler(req, res) {
 
     console.log(`[webhook] ${cnote_no} → ${stage} (${status_category})`);
 
+    // ── Respond segera ke Mengantar — langkah berikutnya async (enrichment) ──
+    // Ini mencegah timeout: core data sudah tersimpan di step 7, sisanya background.
+    res.status(200).json({ ok: true, resi: cnote_no, stage });
+
     // 7b. Fetch detail tracking dari API kurir — dapat masalah_kategori + records
+    // Dibatasi 10 detik supaya tidak block function terlalu lama.
     // Untuk LION dengan UNDELIVERED: Mengantar push UNDELIVERED saat kurir baru mau antar
     // (false alarm), bukan hanya saat gagal. Yang jadi sinyal gagal beneran adalah kode DEX
     // di history (group === 'UNDELIVERED' di entry history). Kalau tidak ada → bukan gagal.
     let masalahKategori = '';
     let apiStage = null;
     try {
-      const { stage: fetchedStage, detail } = await checkResiAuto({ id: cnote_no, ekspedisi: normCourier(courier), kota_tujuan: '' });
+      const checkWithTimeout = Promise.race([
+        checkResiAuto({ id: cnote_no, ekspedisi: normCourier(courier), kota_tujuan: '' }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout 10s')), 10000)),
+      ]);
+      const { stage: fetchedStage, detail } = await checkWithTimeout;
       apiStage = fetchedStage || null;
       if (detail) {
         masalahKategori = detail.masalah_kategori || '';
@@ -287,7 +296,7 @@ module.exports = async function handler(req, res) {
         const rwRows = await sbFetch(
           `room_work?resi=eq.${encodeURIComponent(cnote_no)}&lapor_ekspedisi=eq.true&investigasi=eq.false&select=id,ekspedisi,case_undel`
         );
-        if (!rwRows?.length) return; // belum lapor atau sudah diproses
+        if (!rwRows?.length) return; // belum lapor atau sudah diproses (response sudah dikirim di atas)
         const rwRow = rwRows[0];
 
         // Atomic update — set investigasi=true dengan filter investigasi=eq.false
@@ -329,11 +338,10 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    res.status(200).json({ ok: true, resi: cnote_no, stage });
-
   } catch (e) {
     console.error('[webhook] Error update DB:', e.message);
-    res.status(500).json({ error: e.message });
+    // Kalau error terjadi sebelum res.json() dikirim, kirim 500
+    if (!res.headersSent) res.status(500).json({ error: e.message });
   }
 };
 
