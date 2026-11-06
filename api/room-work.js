@@ -4,6 +4,7 @@
 // PATCH /api/room-work  body: { id, lapor_ekspedisi, lapor_type, ... }
 
 const { sbFetch } = require('../lib/supabase-rest');
+const { notifInvestigasi } = require('../lib/notif-wa');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -85,6 +86,30 @@ module.exports = async function handler(req, res) {
     if (req.method === 'PATCH') {
       const { id, ...patch } = req.body || {};
       if (!id) return res.status(400).json({ error: 'id wajib' });
+
+      // ── Kirim ulang notif investigasi ke group WA ─────────────────────────
+      if (patch.resend_investigasi) {
+        const rows = await sbFetch(`room_work?id=eq.${id}&select=resi,ekspedisi,case_undel`);
+        const row = rows?.[0];
+        if (!row) return res.status(404).json({ error: 'Data tidak ditemukan' });
+
+        let sent = false;
+        try {
+          await notifInvestigasi({
+            resi:      row.resi,
+            ekspedisi: row.ekspedisi || '-',
+            caseUndel: row.case_undel || '-',
+          });
+          sent = true;
+        } catch (e) {
+          console.error('[resend] Notif investigasi gagal:', e.message);
+        }
+        await sbFetch(`room_work?id=eq.${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ notif_investigasi_sent: sent }),
+        });
+        return res.json({ ok: sent, resi: row.resi, notif_investigasi_sent: sent });
+      }
 
       const now = new Date().toISOString();
       if (patch.cs_responded    === true) patch.cs_responded_at    = now;
