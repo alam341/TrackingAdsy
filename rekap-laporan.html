@@ -106,6 +106,14 @@
 .rl-pill-ok     { background: rgba(6,194,112,.1);   color: var(--success); }
 .rl-notif-ok    { font-size: .62rem; font-weight: 700; color: var(--success); margin-top: 2px; }
 .rl-notif-fail  { font-size: .62rem; font-weight: 700; color: var(--danger); margin-top: 2px; }
+.rl-resend-btn {
+  display: inline-block; margin-top: 3px; padding: 2px 8px;
+  font-size: .6rem; font-weight: 700; border: 1px solid var(--danger);
+  background: rgba(239,35,60,.08); color: var(--danger);
+  border-radius: 5px; cursor: pointer; transition: all .15s;
+}
+.rl-resend-btn:hover { background: var(--danger); color: #fff; }
+.rl-resend-btn:disabled { opacity: .5; cursor: default; }
 
 /* ── Bukti SS thumbnail ──────────────────────────────────────────── */
 .rl-ss-thumb {
@@ -416,10 +424,13 @@ function rlTableHtml(rows) {
   const pageRows = rows.slice(offset, offset + RL_PAGE_SIZE);
 
   const tableRows = pageRows.map((o, i) => {
+    const resendBtn = (o.notif_investigasi_sent === false || (o.investigasi && !o.auto_resolved && o.notif_investigasi_sent === null))
+      ? `<button class="rl-resend-btn" onclick="event.stopPropagation();rlResendNotif(${o.id})" data-resend-id="${o.id}">🔄 Kirim Ulang</button>`
+      : '';
     const notifLabel = o.investigasi && !o.auto_resolved
       ? (o.notif_investigasi_sent === true  ? `<div class="rl-notif-ok">✅ Notif Terkirim</div>`
-       : o.notif_investigasi_sent === false ? `<div class="rl-notif-fail">❌ Notif Gagal</div>`
-       : '')
+       : o.notif_investigasi_sent === false ? `<div class="rl-notif-fail">❌ Notif Gagal ${resendBtn}</div>`
+       : `<div class="rl-notif-fail" style="color:var(--text-3)">❓ Belum Tercatat ${resendBtn}</div>`)
       : '';
     const statusPill = o.auto_resolved
       ? `<span class="rl-pill rl-pill-ok">✅ Terkirim</span>`
@@ -591,15 +602,24 @@ function rlDownload() {
     'Ekspedisi':    o.ekspedisi    || '',
     'Kota':         o.kota_tujuan  || '',
     'Case Undel':   o.case_undel   || '',
+    'Bukti SS':     o.cs_log_screenshot_url ? 'Lihat Foto' : '',
     'Tgl Lapor':    o.lapor_ekspedisi_at ? new Date(o.lapor_ekspedisi_at).toLocaleDateString('id-ID') : '',
     'Tgl Update':   (o.investigasi_at || o.lapor_ekspedisi_at) ? new Date(o.investigasi_at || o.lapor_ekspedisi_at).toLocaleDateString('id-ID') : '',
     'Status':       getStatus(o),
   }));
 
   const ws = XLSX.utils.json_to_sheet(data);
+
+  // Inject hyperlink ke kolom Bukti SS (kolom G, index 6)
+  rows.forEach((o, i) => {
+    if (!o.cs_log_screenshot_url) return;
+    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: 6 }); // +1 skip header
+    if (ws[cellRef]) ws[cellRef].l = { Target: o.cs_log_screenshot_url };
+  });
+
   ws['!cols'] = [
     { wch: 5 }, { wch: 22 }, { wch: 22 }, { wch: 12 }, { wch: 16 },
-    { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 22 },
+    { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 22 },
   ];
   const wb = XLSX.utils.book_new();
 
@@ -739,6 +759,33 @@ async function rlCekResi(resi) {
   } catch (e) {
     if (btn) { btn.disabled = false; btn.textContent = '🔄 Cek Ulang'; }
     alert('Gagal cek resi: ' + e.message);
+  }
+}
+
+// ── Kirim ulang notif investigasi ─────────────────────────────────────────────
+async function rlResendNotif(id) {
+  const btn = document.querySelector(`[data-resend-id="${id}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Mengirim...'; }
+  try {
+    const r = await fetch('/api/room-work', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, resend_investigasi: true }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal');
+    if (d.notif_investigasi_sent) {
+      showToast(`✅ Notif investigasi terkirim — ${d.resi}`, 'success');
+      // Update data lokal
+      const row = _rlData.find(o => o.id === id);
+      if (row) row.notif_investigasi_sent = true;
+      rlRender();
+    } else {
+      throw new Error('Fonnte gagal kirim');
+    }
+  } catch (e) {
+    showToast(`❌ Gagal kirim ulang: ${e.message}`, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Kirim Ulang'; }
   }
 }
 

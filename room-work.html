@@ -593,7 +593,11 @@ function rwRenderTable() {
     } else {
       btnLapor = `<button class="rw-btn" id="btn-lapor-${o.id}" onclick="rwOpenLaporModal(${o.id}, '${escapeHtml(o.resi||'')}')">📤 Lapor Eksp.</button>`;
     }
-    const btnInvst = '';
+    const btnInvst = o.investigasi
+      ? (o.notif_investigasi_sent === true
+          ? `<span style="font-size:.65rem;color:var(--success);font-weight:700">✅ Notif OK</span>`
+          : `<button class="rw-btn" style="font-size:.68rem" data-resend-id="${o.id}" onclick="event.stopPropagation();rwResendNotif(${o.id})">🔄 Kirim Ulang</button>`)
+      : '';
 
     return `<tr>
       <td class="rw-col-hide" style="font-size:.7rem;color:var(--text-3);width:24px">${offset + i + 1}</td>
@@ -693,6 +697,32 @@ async function rwAksi(id, field) {
   } catch (e) {
     if (btn) { btn.classList.remove('loading'); btn.textContent = '⚠️ Gagal'; }
     showToast('Gagal: ' + e.message, 'error');
+  }
+}
+
+// ── Kirim ulang notif investigasi ──────────────────────────────────────────────
+async function rwResendNotif(id) {
+  const btn = document.querySelector(`[data-resend-id="${id}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  try {
+    const r = await fetch('/api/room-work', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, resend_investigasi: true }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Gagal');
+    if (d.notif_investigasi_sent) {
+      showToast(`✅ Notif investigasi terkirim — ${d.resi}`, 'success');
+      const row = _rwData.find(o => o.id === id);
+      if (row) row.notif_investigasi_sent = true;
+      rwRender();
+    } else {
+      throw new Error('Fonnte gagal kirim');
+    }
+  } catch (e) {
+    showToast('❌ Gagal kirim ulang: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Kirim Ulang'; }
   }
 }
 
